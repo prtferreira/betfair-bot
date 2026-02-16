@@ -1,14 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-export default function GameList({ date, apiPath = "/api/games", includeDate = true }) {
+export default function GameList({
+  date,
+  apiPath = "/api/games",
+  includeDate = true,
+}) {
   const [state, setState] = useState({
     loading: true,
     error: null,
-    games: []
+    games: [],
   });
   const [strategies, setStrategies] = useState([]);
   const [selection, setSelection] = useState({});
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [{ maxOdd, minOdd }, setOddFilter] = useState({
+    maxOdd: 0,
+    minOdd: 0,
+  });
 
   const strategyOptions = useMemo(() => strategies, [strategies]);
 
@@ -66,7 +74,7 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
       state.games.forEach((game) => {
         next[game.id] = prev[game.id] || {
           selected: false,
-          strategies: []
+          strategies: [],
         };
       });
       return next;
@@ -76,14 +84,14 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
   const updateSelected = (gameId, value) => {
     setSelection((prev) => ({
       ...prev,
-      [gameId]: { ...(prev[gameId] || {}), selected: value }
+      [gameId]: { ...(prev[gameId] || {}), selected: value },
     }));
   };
 
   const updateStrategies = (gameId, values) => {
     setSelection((prev) => ({
       ...prev,
-      [gameId]: { ...(prev[gameId] || {}), strategies: values }
+      [gameId]: { ...(prev[gameId] || {}), strategies: values },
     }));
   };
 
@@ -96,7 +104,7 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
         : [...current.strategies, strategyId];
       return {
         ...prev,
-        [gameId]: { ...current, strategies: nextStrategies }
+        [gameId]: { ...current, strategies: nextStrategies },
       };
     });
   };
@@ -117,6 +125,19 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
     URL.revokeObjectURL(url);
   };
 
+  const games = useMemo(
+    () =>
+      maxOdd !== 0 && minOdd !== 0
+        ? state.games.filter(
+            (game) =>
+              game.awayOdds >= minOdd &&
+              game.awayOdds <= maxOdd &&
+              game.homeOdds <= maxOdd &&
+              game.awayOdds >= minOdd,
+          )
+        : state.games,
+    [maxOdd, minOdd, state.games],
+  );
 
   if (state.loading) {
     return (
@@ -156,15 +177,74 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
         >
           Download selected match IDs
         </button>
+        <fieldset>
+          <label htmlFor="minOdd">Min odd</label>
+          <input
+            id="minOdd"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            onChange={(evt) =>
+              setOddFilter((state) => ({
+                ...state,
+                minOdd:
+                  evt.target.value === ""
+                    ? 0
+                    : Math.max(0, parseFloat(evt.target.value)),
+              }))
+            }
+          />
+        </fieldset>
+        <fieldset className="odd-field">
+          <label htmlFor="maxOdd">Max odd</label>
+          <input
+            id="maxOdd"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            onChange={(evt) =>
+              setOddFilter((state) => ({
+                ...state,
+                maxOdd:
+                  evt.target.value === ""
+                    ? 0
+                    : Math.max(0, parseFloat(evt.target.value)),
+              }))
+            }
+          />
+        </fieldset>
       </div>
       <div className="games">
-        {state.games.map((game) => (
+        {games.map((game) => (
           <article key={game.id} className="game-card">
             <div className="game-card__details">
               <p className="game-card__league">{game.league}</p>
               <h3 className="game-card__match">
-                {game.homeTeam} vs {game.awayTeam}
+                <span className="team home">{game.homeTeam}</span>
+                <span className="vs">vs</span>
+                <span className="team away">{game.awayTeam}</span>
+
+                <span
+                  className={`odd ${
+                    game.homeOdds < game.awayOdds ? "favorite" : "underdog"
+                  }`}
+                >
+                  {game.homeOdds}
+                </span>
+
+                <span></span>
+
+                <span
+                  className={`odd ${
+                    game.awayOdds < game.homeOdds ? "favorite" : "underdog"
+                  }`}
+                >
+                  {game.awayOdds}
+                </span>
               </h3>
+
               <p className="game-card__time">{game.startTime}</p>
             </div>
             <div className="game-card__controls">
@@ -199,7 +279,7 @@ export default function GameList({ date, apiPath = "/api/games", includeDate = t
                           type="checkbox"
                           checked={
                             selection[game.id]?.strategies?.includes(
-                              strategy.id
+                              strategy.id,
                             ) || false
                           }
                           onChange={() => toggleStrategy(game.id, strategy.id)}
