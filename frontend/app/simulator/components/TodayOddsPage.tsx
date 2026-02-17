@@ -1,9 +1,47 @@
 import React, { useEffect, useMemo, useState } from "react";
-import DayTabs from "./DayTabs.jsx";
+import DayTabs from "./DayTabs";
 
 const DAYS_TO_SHOW = 3;
 
-function formatLabel(date) {
+// -----------------------------
+// Tipos
+// -----------------------------
+interface Game {
+  id: string;
+  marketId?: string;
+  league?: string;
+  homeTeam: string;
+  awayTeam: string;
+  startTime?: string;
+  homeOdds?: number;
+  drawOdds?: number;
+  awayOdds?: number;
+  over15Odds?: number;
+  under15Odds?: number;
+  over25Odds?: number;
+  under25Odds?: number;
+  htHomeOdds?: number;
+  htDrawOdds?: number;
+  htAwayOdds?: number;
+}
+
+type Selection = Record<string, boolean>;
+
+interface SubmitState {
+  status: "idle" | "loading" | "success" | "error";
+  message: string;
+}
+
+interface State {
+  loading: boolean;
+  error: string | null;
+  games: Game[];
+}
+
+// -----------------------------
+// Utilitários
+// -----------------------------
+function formatLabel(date: Date): string {
   return date.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "2-digit",
@@ -12,11 +50,10 @@ function formatLabel(date) {
   });
 }
 
-function formatOdds(value) {
-  if (value === null || value === undefined) {
-    return "N/A";
-  }
-  return Number(value).toFixed(2);
+function formatOdds(value?: number | null): string {
+  if (value === null || value === undefined) return "N/A";
+  const num = Number(value);
+  return Number.isNaN(num) ? "N/A" : num.toFixed(2);
 }
 
 function buildDayList() {
@@ -30,51 +67,50 @@ function buildDayList() {
   });
 }
 
-export default function TodayOddsPage({ onBack }) {
+// -----------------------------
+// Componente
+// -----------------------------
+export default function TodayOddsPage({ onBack }: { onBack: () => void }) {
   const days = useMemo(buildDayList, []);
   const [selectedDay, setSelectedDay] = useState(days[0].iso);
   const selectedDayInfo = days.find((day) => day.iso === selectedDay) || days[0];
   const showExtraMarkets = Boolean(selectedDayInfo);
-  const [selection, setSelection] = useState({});
-  const [submitState, setSubmitState] = useState({
-    status: "idle",
-    message: ""
-  });
-  const [state, setState] = useState({
-    loading: true,
-    error: null,
-    games: []
-  });
 
+  const [selection, setSelection] = useState<Selection>({});
+  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle", message: "" });
+  const [state, setState] = useState<State>({ loading: true, error: null, games: [] });
+
+  // -----------------------------
+  // Efeito: carregar jogos do dia
+  // -----------------------------
   useEffect(() => {
     let active = true;
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    setState({ loading: true, error: null, games: [] });
     setSubmitState({ status: "idle", message: "" });
 
-    fetch(`/api/betfair/today-odds?date=${encodeURIComponent(selectedDay)}`)
+    fetch(`http://localhost:8089/api/betfair/today-odds?date=${encodeURIComponent(selectedDay)}`)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load games");
-        }
+        if (!response.ok) throw new Error("Failed to load games");
         return response.json();
       })
-      .then((data) => {
+      .then((data: Game[]) => {
         if (!active) return;
         setState({ loading: false, error: null, games: data });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         if (!active) return;
         setState({ loading: false, error: error.message, games: [] });
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [selectedDay]);
 
+  // -----------------------------
+  // Inicializar seleção
+  // -----------------------------
   useEffect(() => {
     setSelection((prev) => {
-      const next = {};
+      const next: Selection = {};
       state.games.forEach((game) => {
         next[game.id] = prev[game.id] || false;
       });
@@ -82,11 +118,8 @@ export default function TodayOddsPage({ onBack }) {
     });
   }, [state.games]);
 
-  const updateSelected = (gameId, checked) => {
-    setSelection((prev) => ({
-      ...prev,
-      [gameId]: checked
-    }));
+  const updateSelected = (gameId: string, checked: boolean) => {
+    setSelection((prev) => ({ ...prev, [gameId]: checked }));
   };
 
   const saveSelectedMatchIds = () => {
@@ -94,20 +127,17 @@ export default function TodayOddsPage({ onBack }) {
       .filter((game) => selection[game.id])
       .map((game) => game.marketId)
       .filter(Boolean);
+
     if (ids.length === 0) {
-      setSubmitState({
-        status: "error",
-        message: "Select at least one game before submitting."
-      });
+      setSubmitState({ status: "error", message: "Select at least one game before submitting." });
       return;
     }
 
     setSubmitState({ status: "loading", message: "Saving followed games..." });
-    fetch("/api/betfair/followed-games", {
+
+    fetch("http://localhost:8089/api/betfair/followed-games", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: selectedDay, marketIds: ids })
     })
       .then((response) =>
@@ -124,7 +154,7 @@ export default function TodayOddsPage({ onBack }) {
           message: `Saved ${data.savedCount} match IDs to ${data.file}`
         });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         setSubmitState({
           status: "error",
           message: error.message || "Failed to save followed games"
@@ -132,6 +162,9 @@ export default function TodayOddsPage({ onBack }) {
       });
   };
 
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <>
       <header className="hero">
@@ -153,11 +186,7 @@ export default function TodayOddsPage({ onBack }) {
         </div>
       </header>
 
-      <DayTabs
-        days={days}
-        selectedDay={selectedDay}
-        onSelect={setSelectedDay}
-      />
+      <DayTabs days={days} selectedDay={selectedDay} onSelect={setSelectedDay} />
 
       <main>
         {state.loading ? (
@@ -179,11 +208,7 @@ export default function TodayOddsPage({ onBack }) {
               <p className="panel__meta">{state.games.length} fixtures</p>
             </div>
             <div className="panel__actions">
-              <button
-                className="action-button"
-                type="button"
-                onClick={saveSelectedMatchIds}
-              >
+              <button className="action-button" type="button" onClick={saveSelectedMatchIds}>
                 Submit followed games
               </button>
               {submitState.status !== "idle" && (
@@ -204,11 +229,9 @@ export default function TodayOddsPage({ onBack }) {
               {state.games.map((game) => (
                 <article key={game.id} className="odds-card">
                   <div className="odds-card__details">
-                    <p className="game-card__league">{game.league}</p>
-                    <h3 className="game-card__match">
-                      {game.homeTeam} vs {game.awayTeam}
-                    </h3>
-                    <p className="game-card__time">{game.startTime}</p>
+                    <p className="game-card__league">{game.league || "-"}</p>
+                    <h3 className="game-card__match">{game.homeTeam} vs {game.awayTeam}</h3>
+                    <p className="game-card__time">{game.startTime || "-"}</p>
                   </div>
                   <div className="odds-card__market">
                     <div className="odds-line">
@@ -216,9 +239,7 @@ export default function TodayOddsPage({ onBack }) {
                         <input
                           type="checkbox"
                           checked={selection[game.id] || false}
-                          onChange={(event) =>
-                            updateSelected(game.id, event.target.checked)
-                          }
+                          onChange={(e) => updateSelected(game.id, e.target.checked)}
                         />
                         Follow
                       </label>
@@ -239,8 +260,10 @@ export default function TodayOddsPage({ onBack }) {
                           </div>
                         </div>
                       </div>
+
                       {showExtraMarkets && (
                         <>
+                          {/* O/U 1.5 */}
                           <div className="market-group">
                             <div className="market-group__header">O/U 1.5</div>
                             <div className="market-group__row">
@@ -251,36 +274,6 @@ export default function TodayOddsPage({ onBack }) {
                               <div className="odds-pill odds-pill--compact">
                                 <span className="odds-pill__team">Under</span>
                                 <span className="odds-pill__value">{formatOdds(game.under15Odds)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="market-group">
-                            <div className="market-group__header">O/U 2.5</div>
-                            <div className="market-group__row">
-                              <div className="odds-pill odds-pill--compact">
-                                <span className="odds-pill__team">Over</span>
-                                <span className="odds-pill__value">{formatOdds(game.over25Odds)}</span>
-                              </div>
-                              <div className="odds-pill odds-pill--compact">
-                                <span className="odds-pill__team">Under</span>
-                                <span className="odds-pill__value">{formatOdds(game.under25Odds)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="market-group">
-                            <div className="market-group__header">HT Result</div>
-                            <div className="market-group__row">
-                              <div className="odds-pill odds-pill--compact">
-                                <span className="odds-pill__team">Home</span>
-                                <span className="odds-pill__value">{formatOdds(game.htHomeOdds)}</span>
-                              </div>
-                              <div className="odds-pill odds-pill--draw odds-pill--compact">
-                                <span className="odds-pill__team">Draw</span>
-                                <span className="odds-pill__value">{formatOdds(game.htDrawOdds)}</span>
-                              </div>
-                              <div className="odds-pill odds-pill--compact">
-                                <span className="odds-pill__team">Away</span>
-                                <span className="odds-pill__value">{formatOdds(game.htAwayOdds)}</span>
                               </div>
                             </div>
                           </div>
@@ -297,3 +290,4 @@ export default function TodayOddsPage({ onBack }) {
     </>
   );
 }
+

@@ -1,56 +1,112 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-function buildTodayIso() {
+// -----------------------------
+// Tipos
+// -----------------------------
+interface Game {
+  id: string;
+  marketId?: string;
+  league?: string;
+  homeTeam: string;
+  awayTeam: string;
+  startTime?: string;
+  listStatus?: string;
+  homeOdds?: number;
+  drawOdds?: number;
+  awayOdds?: number;
+  htHomeOdds?: number;
+  htDrawOdds?: number;
+  htAwayOdds?: number;
+  over05Odds?: number;
+  under05Odds?: number;
+}
+
+interface MonitorEntry {
+  marketId: string;
+  teams: string;
+  startTime?: string;
+  oddsFile?: string;
+  status?: string;
+  started?: boolean;
+  ftMarketStatus?: string;
+  htMarketStatus?: string;
+  ou05MarketStatus?: string;
+  homeOdds?: number;
+  drawOdds?: number;
+  awayOdds?: number;
+  htHomeOdds?: number;
+  htDrawOdds?: number;
+  htAwayOdds?: number;
+  over05Odds?: number;
+  under05Odds?: number;
+}
+
+interface StrategyLeg {
+  id: number;
+  minute: string;
+  betType: "back" | "lay";
+  market: "FT_1X2" | "HT_1X2" | "OU_05";
+  selection: string;
+  manualOdds: string;
+}
+
+interface SubmitState {
+  status: "idle" | "loading" | "success" | "error";
+  message: string;
+}
+
+interface GamesState {
+  loading: boolean;
+  error: string | null;
+  games: Game[];
+}
+
+interface MonitorState {
+  loading: boolean;
+  error: string | null;
+  entries: MonitorEntry[];
+  updatedAt: Date | null;
+}
+
+// -----------------------------
+// Utilitários
+// -----------------------------
+function buildTodayIso(): string {
   const today = new Date();
   return [
     today.getFullYear(),
     String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0")
+    String(today.getDate()).padStart(2, "0"),
   ].join("-");
 }
 
-function formatOdds(value) {
-  if (value === null || value === undefined) {
-    return "N/A";
-  }
+function formatOdds(value?: number | null): string {
+  if (value === null || value === undefined) return "N/A";
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return "N/A";
-  }
-  return numeric.toFixed(2);
+  return Number.isNaN(numeric) ? "N/A" : numeric.toFixed(2);
 }
 
-function parseOdds(value) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
+function parseOdds(value?: string | number | null): number | null {
+  if (value === null || value === undefined || value === "") return null;
   const numeric = Number(value);
   return Number.isNaN(numeric) ? null : numeric;
 }
 
-function statusClassName(status) {
-  if (!status) {
-    return "status-pill status-pill--unknown";
-  }
+function statusClassName(status?: string): string {
+  if (!status) return "status-pill status-pill--unknown";
   const key = status.toLowerCase().replace(/\s+/g, "-");
   return `status-pill status-pill--${key}`;
 }
 
-function outcomeOptions(market) {
-  if (market === "OU_05") {
-    return ["Over 0.5", "Under 0.5"];
-  }
+function outcomeOptions(market: string): string[] {
+  if (market === "OU_05") return ["Over 0.5", "Under 0.5"];
   return ["Home", "Draw", "Away"];
 }
 
-function resolveLegOdds(entry, leg) {
+function resolveLegOdds(entry: MonitorEntry | null, leg: StrategyLeg): number | null {
   const manual = parseOdds(leg.manualOdds);
-  if (manual !== null && manual > 1) {
-    return manual;
-  }
-  if (!entry) {
-    return null;
-  }
+  if (manual !== null && manual > 1) return manual;
+  if (!entry) return null;
 
   if (leg.market === "FT_1X2") {
     if (leg.selection === "Home") return parseOdds(entry.homeOdds);
@@ -72,69 +128,52 @@ function resolveLegOdds(entry, leg) {
   return null;
 }
 
-export default function BestStrategyPage({ onBack }) {
+// -----------------------------
+// Componente
+// -----------------------------
+export default function BestStrategyPage({ onBack }: { onBack: () => void }) {
   const todayIso = useMemo(buildTodayIso, []);
-  const [gamesState, setGamesState] = useState({
-    loading: true,
-    error: null,
-    games: []
-  });
-  const [selection, setSelection] = useState({});
-  const [submitState, setSubmitState] = useState({
-    status: "idle",
-    message: ""
-  });
-  const [monitorState, setMonitorState] = useState({
+  const [gamesState, setGamesState] = useState<GamesState>({ loading: true, error: null, games: [] });
+  const [selection, setSelection] = useState<Record<string, boolean>>({});
+  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle", message: "" });
+  const [monitorState, setMonitorState] = useState<MonitorState>({
     loading: true,
     error: null,
     entries: [],
-    updatedAt: null
+    updatedAt: null,
   });
   const [stake, setStake] = useState("10");
   const [strategyMarketId, setStrategyMarketId] = useState("");
-  const [legs, setLegs] = useState([
-    {
-      id: 1,
-      minute: "10",
-      betType: "back",
-      market: "FT_1X2",
-      selection: "Home",
-      manualOdds: ""
-    }
+  const [legs, setLegs] = useState<StrategyLeg[]>([
+    { id: 1, minute: "10", betType: "back", market: "FT_1X2", selection: "Home", manualOdds: "" },
   ]);
 
+  // -----------------------------
+  // Carregar jogos
+  // -----------------------------
   useEffect(() => {
     let active = true;
     setGamesState({ loading: true, error: null, games: [] });
 
     Promise.all([
-      fetch(`/api/betfair/today-odds?date=${encodeURIComponent(todayIso)}`).then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load scheduled games");
-        }
-        return response.json();
+      fetch(`http://localhost:8089/api/betfair/today-odds?date=${encodeURIComponent(todayIso)}`).then((res) => {
+        if (!res.ok) throw new Error("Failed to load scheduled games");
+        return res.json();
       }),
-      fetch(`/api/betfair/inplay/brasil-serie-a`).then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load in-play games");
-        }
-        return response.json();
-      })
+      fetch(`http://localhost:8089/api/betfair/inplay/brasil-serie-a`).then((res) => {
+        if (!res.ok) throw new Error("Failed to load in-play games");
+        return res.json();
+      }),
     ])
       .then(([scheduledGames, inPlayGames]) => {
         if (!active) return;
-        const byMarketId = new Map();
+
+        const byMarketId = new Map<string, Game>();
         (Array.isArray(scheduledGames) ? scheduledGames : []).forEach((game) => {
-          byMarketId.set(game.marketId || game.id, {
-            ...game,
-            listStatus: "Scheduled"
-          });
+          byMarketId.set(game.marketId || game.id, { ...game, listStatus: "Scheduled" });
         });
         (Array.isArray(inPlayGames) ? inPlayGames : []).forEach((game) => {
-          byMarketId.set(game.marketId || game.id, {
-            ...game,
-            listStatus: "Started"
-          });
+          byMarketId.set(game.marketId || game.id, { ...game, listStatus: "Started" });
         });
 
         const merged = Array.from(byMarketId.values());
@@ -146,21 +185,23 @@ export default function BestStrategyPage({ onBack }) {
           if (Number.isNaN(bTime)) return -1;
           return aTime - bTime;
         });
+
         setGamesState({ loading: false, error: null, games: sorted });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         if (!active) return;
         setGamesState({ loading: false, error: error.message, games: [] });
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [todayIso]);
 
+  // -----------------------------
+  // Inicializar seleção
+  // -----------------------------
   useEffect(() => {
     setSelection((prev) => {
-      const next = {};
+      const next: Record<string, boolean> = {};
       gamesState.games.forEach((game) => {
         next[game.id] = prev[game.id] || false;
       });
@@ -168,170 +209,109 @@ export default function BestStrategyPage({ onBack }) {
     });
   }, [gamesState.games]);
 
+  // -----------------------------
+  // Monitor in-play
+  // -----------------------------
   useEffect(() => {
     let active = true;
+
     const loadMonitor = (initial = false) => {
       if (!active) return;
-      setMonitorState((prev) => ({
-        ...prev,
-        loading: initial ? true : prev.loading
-      }));
-      fetch(`/api/betfair/best-strategy/monitor?date=${encodeURIComponent(todayIso)}&ts=${Date.now()}`)
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Failed to load best strategy monitor");
-          }
-          return response.json();
+      setMonitorState((prev) => ({ ...prev, loading: initial ? true : prev.loading }));
+      fetch(`http://localhost:8089/api/betfair/best-strategy/monitor?date=${encodeURIComponent(todayIso)}&ts=${Date.now()}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load best strategy monitor");
+          return res.json();
         })
-        .then((entries) => {
+        .then((entries: MonitorEntry[]) => {
           if (!active) return;
-          const data = Array.isArray(entries) ? entries : [];
-          setMonitorState({
-            loading: false,
-            error: null,
-            entries: data,
-            updatedAt: new Date()
-          });
+          setMonitorState({ loading: false, error: null, entries: Array.isArray(entries) ? entries : [], updatedAt: new Date() });
         })
-        .catch((error) => {
+        .catch((error: Error) => {
           if (!active) return;
-          setMonitorState({
-            loading: false,
-            error: error.message || "Failed to load best strategy monitor",
-            entries: [],
-            updatedAt: new Date()
-          });
+          setMonitorState({ loading: false, error: error.message || "Failed to load best strategy monitor", entries: [], updatedAt: new Date() });
         });
     };
 
     loadMonitor(true);
     const timer = setInterval(() => loadMonitor(false), 30000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
+    return () => { active = false; clearInterval(timer); };
   }, [todayIso]);
 
   useEffect(() => {
     if (!strategyMarketId && monitorState.entries.length > 0) {
-      setStrategyMarketId(monitorState.entries[0].marketId || "");
+      setStrategyMarketId(monitorState.entries[0].marketId);
     }
   }, [strategyMarketId, monitorState.entries]);
 
-  const updateSelected = (gameId, checked) => {
-    setSelection((prev) => ({
-      ...prev,
-      [gameId]: checked
-    }));
+  // -----------------------------
+  // Seleção de jogos
+  // -----------------------------
+  const updateSelected = (gameId: string, checked: boolean) => setSelection((prev) => ({ ...prev, [gameId]: checked }));
+  const selectAllGames = (checked: boolean) => {
+    const next: Record<string, boolean> = {};
+    gamesState.games.forEach((game) => { next[game.id] = checked; });
+    setSelection(next);
   };
 
-  const selectAllGames = (checked) => {
-    setSelection(() => {
-      const next = {};
-      gamesState.games.forEach((game) => {
-        next[game.id] = checked;
-      });
-      return next;
-    });
-  };
-
+  // -----------------------------
+  // Submit jogos
+  // -----------------------------
   const submitSelectedGames = () => {
     const entries = gamesState.games
       .filter((game) => selection[game.id])
-      .map((game) => {
-        const teams = `${game.homeTeam} vs ${game.awayTeam}`;
-        const startTime = game.startTime || "";
-        return `${game.marketId},${startTime},${teams}`;
-      })
+      .map((game) => `${game.marketId},${game.startTime || ""},${game.homeTeam} vs ${game.awayTeam}`)
       .filter((line) => line.split(",")[0]);
 
     if (entries.length === 0) {
-      setSubmitState({
-        status: "error",
-        message: "Select at least one game before submitting."
-      });
+      setSubmitState({ status: "error", message: "Select at least one game before submitting." });
       return;
     }
 
     setSubmitState({ status: "loading", message: "Saving best strategy games..." });
-    fetch("/api/betfair/best-strategy/games", {
+
+    fetch("http://localhost:8089/api/betfair/best-strategy/games", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ date: todayIso, entries })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: todayIso, entries }),
     })
-      .then((response) =>
-        response.json().then((data) => {
-          if (!response.ok || data.status !== "OK") {
-            throw new Error(data.message || "Failed to save best strategy games");
-          }
+      .then((res) =>
+        res.json().then((data) => {
+          if (!res.ok || data.status !== "OK") throw new Error(data.message || "Failed to save best strategy games");
           return data;
         })
       )
-      .then((data) => {
-        setSubmitState({
-          status: "success",
-          message: `Saved ${data.savedCount} games to ${data.file}`
-        });
-      })
-      .catch((error) => {
-        setSubmitState({
-          status: "error",
-          message: error.message || "Failed to save best strategy games"
-        });
-      });
+      .then((data) => setSubmitState({ status: "success", message: `Saved ${data.savedCount} games to ${data.file}` }))
+      .catch((error: Error) => setSubmitState({ status: "error", message: error.message || "Failed to save best strategy games" }));
   };
 
-  const addLeg = () => {
-    setLegs((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        minute: "",
-        betType: "back",
-        market: "FT_1X2",
-        selection: "Home",
-        manualOdds: ""
-      }
-    ]);
-  };
-
-  const removeLeg = (id) => {
-    setLegs((prev) => prev.filter((leg) => leg.id !== id));
-  };
-
-  const updateLeg = (id, field, value) => {
+  // -----------------------------
+  // Legs
+  // -----------------------------
+  const addLeg = () => setLegs((prev) => [...prev, { id: Date.now(), minute: "", betType: "back", market: "FT_1X2", selection: "Home", manualOdds: "" }]);
+  const removeLeg = (id: number) => setLegs((prev) => prev.filter((leg) => leg.id !== id));
+  const updateLeg = (id: number, field: keyof StrategyLeg, value: any) => {
     setLegs((prev) =>
       prev.map((leg) => {
-        if (leg.id !== id) {
-          return leg;
-        }
-        if (field === "market") {
-          const nextOptions = outcomeOptions(value);
-          return {
-            ...leg,
-            market: value,
-            selection: nextOptions[0]
-          };
-        }
-        return {
-          ...leg,
-          [field]: value
-        };
+        if (leg.id !== id) return leg;
+        if (field === "market") return { ...leg, market: value, selection: outcomeOptions(value)[0] };
+        return { ...leg, [field]: value };
       })
     );
   };
 
+  // -----------------------------
+  // Cálculos combinados
+  // -----------------------------
   const inPlayEntries = monitorState.entries.filter((entry) => entry.started);
-  const selectedMonitorEntry =
-    monitorState.entries.find((entry) => entry.marketId === strategyMarketId) || null;
+  const selectedMonitorEntry = monitorState.entries.find((entry) => entry.marketId === strategyMarketId) || null;
   const stakeValue = parseOdds(stake);
 
   let backCombinedOdds = 1;
   let hasBackLeg = false;
   let layLiability = 0;
   let unresolvedLegs = 0;
+
   for (const leg of legs) {
     const odds = resolveLegOdds(selectedMonitorEntry, leg);
     if (odds === null || odds <= 1) {
@@ -339,19 +319,19 @@ export default function BestStrategyPage({ onBack }) {
       continue;
     }
     if (leg.betType === "lay") {
-      if (stakeValue !== null) {
-        layLiability += stakeValue * (odds - 1);
-      }
+      if (stakeValue !== null) layLiability += stakeValue * (odds - 1);
     } else {
       hasBackLeg = true;
       backCombinedOdds *= odds;
     }
   }
 
-  const estimatedBackReturn =
-    stakeValue !== null && hasBackLeg ? stakeValue * backCombinedOdds : null;
-  const estimatedBackProfit =
-    estimatedBackReturn !== null && stakeValue !== null ? estimatedBackReturn - stakeValue : null;
+  const estimatedBackReturn = stakeValue !== null && hasBackLeg ? stakeValue * backCombinedOdds : null;
+  const estimatedBackProfit = estimatedBackReturn !== null && stakeValue !== null ? estimatedBackReturn - stakeValue : null;
+
+  // -----------------------------
+  // Render
+  // -----------------------------
 
   return (
     <>

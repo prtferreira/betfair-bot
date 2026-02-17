@@ -1,36 +1,53 @@
 import React, { useEffect, useState } from "react";
 
-function formatOdds(value) {
-  if (value === null || value === undefined) {
-    return "N/A";
-  }
+interface Game {
+  id: string | number;
+  league: string;
+  homeTeam: string;
+  awayTeam: string;
+  startTime: string;
+  homeOdds: number | null;
+  drawOdds: number | null;
+  awayOdds: number | null;
+}
+
+interface InPlayBrazilSerieAPageProps {
+  onBack: () => void;
+}
+
+interface State {
+  loading: boolean;
+  error: string | null;
+  games: Game[];
+}
+
+function formatOdds(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "N/A";
   return Number(value).toFixed(2);
 }
 
-export default function InPlayBrazilSerieAPage({ onBack }) {
-  const [state, setState] = useState({
+export default function InPlayBrazilSerieAPage({ onBack }: InPlayBrazilSerieAPageProps) {
+  const [state, setState] = useState<State>({
     loading: true,
     error: null,
     games: []
   });
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadGames = (background = false) => {
     if (!background) {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     }
-    fetch(`/api/betfair/inplay/brasil-serie-a?_t=${Date.now()}`, { cache: "no-store" })
+    fetch(`http://localhost:8089/api/betfair/inplay/brasil-serie-a?_t=${Date.now()}`, { cache: "no-store" })
       .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load in-play games");
-        }
+        if (!response.ok) throw new Error("Failed to load in-play games");
         return response.json();
       })
-      .then((data) => {
+      .then((data: Game[]) => {
         setState({ loading: false, error: null, games: data });
         setLastUpdated(new Date());
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         setState({ loading: false, error: error.message, games: [] });
       });
   };
@@ -81,7 +98,7 @@ export default function InPlayBrazilSerieAPage({ onBack }) {
               </p>
             </div>
             <div className="panel__actions">
-              <button className="action-button" type="button" onClick={loadGames}>
+              <button className="action-button" type="button" onClick={()=> loadGames()}>
                 Refresh live odds
               </button>
             </div>

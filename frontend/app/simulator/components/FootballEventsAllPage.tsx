@@ -1,7 +1,11 @@
 import React from "react";
-import GameList from "./GameList.jsx";
+import GameList from "./GameList";
 
-export default function FootballEventsAllPage({ onBack }) {
+interface FootballEventsAllPageProps {
+  onBack: () => void;
+}
+
+export default function FootballEventsAllPage({ onBack }: FootballEventsAllPageProps) {
   return (
     <>
       <header className="hero">
@@ -27,3 +31,4 @@ export default function FootballEventsAllPage({ onBack }) {
     </>
   );
 }
+

@@ -1,14 +1,46 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-function formatOdds(value) {
-  if (value === null || value === undefined) {
-    return null;
-  }
+interface Day {
+  iso: string;
+  label: string;
+}
+
+interface Game {
+  id: string;
+  marketId: string;
+  homeTeam: string;
+  awayTeam: string;
+  league?: string;
+  startTime?: string;
+  homeOdds?: number | string | null;
+  drawOdds?: number | string | null;
+  awayOdds?: number | string | null;
+  dayLabel?: string;
+}
+
+interface SubmitState {
+  status: "idle" | "loading" | "success" | "error";
+  message: string;
+}
+
+interface PageState {
+  loading: boolean;
+  error: string | null;
+  games: Game[];
+}
+
+interface Props {
+  onBack: () => void;
+  onStatus?: () => void;
+}
+
+function formatOdds(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
   const numeric = Number(value);
   return Number.isNaN(numeric) ? null : numeric;
 }
 
-function formatLabel(date) {
+function formatLabel(date: Date): string {
   return date.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "2-digit",
@@ -17,26 +49,29 @@ function formatLabel(date) {
   });
 }
 
-function buildDates() {
+function buildDates(): Day[] {
   const today = new Date();
   return Array.from({ length: 3 }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() + index);
+
     const iso = [
       date.getFullYear(),
       String(date.getMonth() + 1).padStart(2, "0"),
       String(date.getDate()).padStart(2, "0")
     ].join("-");
-    return {
-      iso,
-      label: formatLabel(date)
-    };
+
+    return { iso, label: formatLabel(date) };
   });
 }
 
-export default function BestMatchesToLayPage({ onBack }) {
-  const days = useMemo(buildDates, []);
-  const todayIso = useMemo(() => {
+export default function BalancedMatchesPage({
+  onBack,
+  onStatus
+}: Props) {
+  const days = useMemo<Day[]>(buildDates, []);
+
+  const todayIso = useMemo<string>(() => {
     const today = new Date();
     return [
       today.getFullYear(),
@@ -44,12 +79,13 @@ export default function BestMatchesToLayPage({ onBack }) {
       String(today.getDate()).padStart(2, "0")
     ].join("-");
   }, []);
-  const [selection, setSelection] = useState({});
-  const [submitState, setSubmitState] = useState({
+
+  const [selection, setSelection] = useState<Record<string, boolean>>({});
+  const [submitState, setSubmitState] = useState<SubmitState>({
     status: "idle",
     message: ""
   });
-  const [state, setState] = useState({
+  const [state, setState] = useState<PageState>({
     loading: true,
     error: null,
     games: []
@@ -57,17 +93,16 @@ export default function BestMatchesToLayPage({ onBack }) {
 
   useEffect(() => {
     let active = true;
+
     setState({ loading: true, error: null, games: [] });
     setSubmitState({ status: "idle", message: "" });
 
     Promise.all(
       days.map((day) =>
-        fetch(`/api/betfair/today-odds?date=${encodeURIComponent(day.iso)}`)
+        fetch(`http://localhost:8089/api/betfair/today-odds?date=${encodeURIComponent(day.iso)}`)
           .then((response) => {
-            if (!response.ok) {
-              throw new Error("Failed to load games");
-            }
-            return response.json();
+            if (!response.ok) throw new Error("Failed to load games");
+            return response.json() as Promise<Game[]>;
           })
           .then((games) =>
             games.map((game) => ({
@@ -79,17 +114,19 @@ export default function BestMatchesToLayPage({ onBack }) {
     )
       .then((chunks) => {
         if (!active) return;
+
         const allGames = chunks.flat();
+
         const filtered = allGames.filter((game) => {
           const home = formatOdds(game.homeOdds);
           const away = formatOdds(game.awayOdds);
-          const draw = formatOdds(game.drawOdds);
-          if (home === null || away === null || draw === null) {
-            return false;
-          }
+          if (home === null || away === null) return false;
+
           const favourite = Math.min(home, away);
-          return favourite > 1.7 && favourite < 2.2 && draw < 3.8;
+          const underdog = Math.max(home, away);
+          return favourite > 1.8 && underdog < 4;
         });
+
         const sorted = filtered.sort((a, b) => {
           const aTime = Date.parse(a.startTime || "");
           const bTime = Date.parse(b.startTime || "");
@@ -98,9 +135,10 @@ export default function BestMatchesToLayPage({ onBack }) {
           if (Number.isNaN(bTime)) return -1;
           return aTime - bTime;
         });
+
         setState({ loading: false, error: null, games: sorted });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         if (!active) return;
         setState({ loading: false, error: error.message, games: [] });
       });
@@ -112,7 +150,7 @@ export default function BestMatchesToLayPage({ onBack }) {
 
   useEffect(() => {
     setSelection((prev) => {
-      const next = {};
+      const next: Record<string, boolean> = {};
       state.games.forEach((game) => {
         next[game.id] = prev[game.id] || false;
       });
@@ -120,14 +158,24 @@ export default function BestMatchesToLayPage({ onBack }) {
     });
   }, [state.games]);
 
-  const updateSelected = (gameId, checked) => {
+  const updateSelected = (gameId: string, checked: boolean): void => {
     setSelection((prev) => ({
       ...prev,
       [gameId]: checked
     }));
   };
 
-  const submitSelectedGames = () => {
+  const selectAllGames = (checked: boolean): void => {
+    setSelection(() => {
+      const next: Record<string, boolean> = {};
+      state.games.forEach((game) => {
+        next[game.id] = checked;
+      });
+      return next;
+    });
+  };
+
+  const submitSelectedGames = (): void => {
     const entries = state.games
       .filter((game) => selection[game.id])
       .map((game) => {
@@ -136,6 +184,7 @@ export default function BestMatchesToLayPage({ onBack }) {
         return `${game.marketId},${startTime},${teams}`;
       })
       .filter((line) => line.split(",")[0]);
+
     if (entries.length === 0) {
       setSubmitState({
         status: "error",
@@ -144,54 +193,43 @@ export default function BestMatchesToLayPage({ onBack }) {
       return;
     }
 
-    setSubmitState({ status: "loading", message: "Saving selected games..." });
-    fetch("/api/betfair/lay-matches-report", {
+    setSubmitState({ status: "loading", message: "Saving balanced games..." });
+
+    fetch("http://localhost:8089/api/betfair/balanced-games", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: todayIso, entries })
     })
-      .then((response) =>
-        response.json().then((data) => {
-          if (!response.ok || data.status !== "OK") {
-            throw new Error(data.message || "Failed to save selected games");
-          }
-          return data;
-        })
-      )
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || data.status !== "OK") {
+          throw new Error(data.message || "Failed to save balanced games");
+        }
+        return data as { savedCount: number; file: string };
+      })
       .then((data) => {
         setSubmitState({
           status: "success",
           message: `Saved ${data.savedCount} games to ${data.file}`
         });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         setSubmitState({
           status: "error",
-          message: error.message || "Failed to save selected games"
+          message: error.message || "Failed to save balanced games"
         });
       });
   };
 
-  const selectAllGames = (checked) => {
-    setSelection(() => {
-      const next = {};
-      state.games.forEach((game) => {
-        next[game.id] = checked;
-      });
-      return next;
-    });
-  };
 
   return (
     <>
       <header className="hero">
         <div>
           <p className="eyebrow">Betfair Trade Simulator</p>
-          <h1>Best Matches to Lay</h1>
+          <h1>Balanced Matches</h1>
           <p className="subhead">
-            Next 3 days, 1X2 markets where the favourite is between 1.7 and 2.2 and the draw is less than 3.8.
+            Next 3 days, favourite &gt; 1.8 and underdog &lt; 4.0 (1X2).
           </p>
         </div>
         <div className="hero-card">
@@ -201,6 +239,11 @@ export default function BestMatchesToLayPage({ onBack }) {
             <button className="action-button action-button--ghost" type="button" onClick={onBack}>
               Back to games
             </button>
+            {onStatus && (
+              <button className="action-button action-button--ghost" type="button" onClick={onStatus}>
+                View in-play status
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -208,7 +251,7 @@ export default function BestMatchesToLayPage({ onBack }) {
       <main>
         {state.loading ? (
           <section className="panel">
-            <p className="status">Loading best matches to lay...</p>
+            <p className="status">Loading balanced matches...</p>
           </section>
         ) : state.error ? (
           <section className="panel panel--error">
@@ -221,7 +264,7 @@ export default function BestMatchesToLayPage({ onBack }) {
         ) : (
           <section className="panel">
             <div className="panel__header">
-              <h2>Matches to watch</h2>
+              <h2>Balanced games</h2>
               <p className="panel__meta">{state.games.length} fixtures</p>
             </div>
             <div className="panel__actions">
@@ -244,7 +287,7 @@ export default function BestMatchesToLayPage({ onBack }) {
                 type="button"
                 onClick={submitSelectedGames}
               >
-                Submit selected games
+                Submit balanced games
               </button>
               {submitState.status !== "idle" && (
                 <p

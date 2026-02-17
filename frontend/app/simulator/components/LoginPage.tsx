@@ -1,16 +1,27 @@
 import React, { useState } from "react";
 
-export default function LoginPage({ onResult }) {
-  const [status, setStatus] = useState(null);
+interface LoginPageProps {
+  onResult: (result: { status: "SUCCESS" | "FAILED"; message: string }) => void;
+}
+
+type LoginStatus =
+  | { state: "loading"; message: string }
+  | { state: "success"; message: string }
+  | { state: "error"; message: string }
+  | null;
+
+export default function LoginPage({ onResult }: LoginPageProps) {
+  const [status, setStatus] = useState<LoginStatus>(null);
 
   const handleLogin = () => {
     setStatus({ state: "loading", message: "Logging in..." });
-    fetch("/api/betfair/login", { method: "POST" })
+
+    fetch("http://localhost:8089/api/betfair/login", { method: "POST" })
       .then((response) => response.json())
-      .then((data) => {
+      .then((data: { status?: string; message?: string }) => {
         if (data.status === "SUCCESS") {
-          setStatus({ state: "success", message: data.message });
-          onResult({ status: "SUCCESS", message: data.message });
+          setStatus({ state: "success", message: data.message || "Login successful" });
+          onResult({ status: "SUCCESS", message: data.message || "Login successful" });
         } else {
           const message = data.message || "Login failed";
           setStatus({ state: "error", message });
@@ -18,8 +29,9 @@ export default function LoginPage({ onResult }) {
         }
       })
       .catch(() => {
-        setStatus({ state: "error", message: "Login failed" });
-        onResult({ status: "FAILED", message: "Login failed" });
+        const message = "Login failed";
+        setStatus({ state: "error", message });
+        onResult({ status: "FAILED", message });
       });
   };
 

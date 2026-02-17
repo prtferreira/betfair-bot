@@ -2,18 +2,23 @@
   "name": "betfair-trade-sim-frontend",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev -p 5173",
+    "build": "next build",
+    "start": "next start -p 5173",
+    "lint": "next lint"
   },
   "dependencies": {
+    "next": "^16",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^5",
-    "vite": "^5"
+    "typescript": "^5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/node": "^25",
+    "eslint": "^9",
+    "eslint-config-next": "^16"
   }
 }

@@ -1,10 +1,19 @@
 import React, { useMemo, useState } from "react";
-import DayTabs from "./DayTabs.jsx";
-import GameList from "./GameList.jsx";
+import DayTabs from "./DayTabs";
+import GameList from "./GameList";
 
 const DAYS_TO_SHOW = 7;
 
-function buildDayList() {
+interface Day {
+  iso: string;
+  label: string;
+}
+
+interface FootballEventsPageProps {
+  onBack: () => void;
+}
+
+function buildDayList(): Day[] {
   const today = new Date();
   return Array.from({ length: DAYS_TO_SHOW }, (_, index) => {
     const date = new Date(today);
@@ -19,9 +28,9 @@ function buildDayList() {
   });
 }
 
-export default function FootballEventsPage({ onBack }) {
+export default function FootballEventsPage({ onBack }: FootballEventsPageProps) {
   const days = useMemo(buildDayList, []);
-  const [selectedDay, setSelectedDay] = useState(days[0].iso);
+  const [selectedDay, setSelectedDay] = useState<string>(days[0].iso);
 
   return (
     <>
@@ -42,11 +51,7 @@ export default function FootballEventsPage({ onBack }) {
         </div>
       </header>
 
-      <DayTabs
-        days={days}
-        selectedDay={selectedDay}
-        onSelect={setSelectedDay}
-      />
+      <DayTabs days={days} selectedDay={selectedDay} onSelect={setSelectedDay} />
 
       <main>
         <GameList date={selectedDay} apiPath="/api/betfair/football" />

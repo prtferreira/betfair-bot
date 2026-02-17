@@ -1,6 +1,17 @@
 import React from "react";
 
-export default function DayTabs({ days, selectedDay, onSelect }) {
+interface Day {
+  iso: string;
+  label: string;
+}
+
+interface DayTabsProps {
+  days: Day[];
+  selectedDay: string;
+  onSelect: (iso: string) => void;
+}
+
+export default function DayTabs({ days, selectedDay, onSelect }: DayTabsProps) {
   return (
     <section className="tabs">
       <div className="tabs__rail">
@@ -19,3 +30,4 @@ export default function DayTabs({ days, selectedDay, onSelect }) {
     </section>
   );
 }
+

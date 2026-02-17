@@ -1,22 +1,29 @@
-import React, { useMemo, useState } from "react";
-import DayTabs from "./components/DayTabs.jsx";
-import GameList from "./components/GameList.jsx";
-import LoginPage from "./components/LoginPage.jsx";
-import LoginResultPage from "./components/LoginResultPage.jsx";
-import FootballEventsPage from "./components/FootballEventsPage.jsx";
-import FootballEventsAllPage from "./components/FootballEventsAllPage.jsx";
-import TodayOddsPage from "./components/TodayOddsPage.jsx";
-import InPlayBrazilSerieAPage from "./components/InPlayBrazilSerieAPage.jsx";
-import BestMatchesPage from "./components/BestMatchesPage.jsx";
-import BestMatchesToLayPage from "./components/BestMatchesToLayPage.jsx";
-import BestStrategyPage from "./components/BestStrategyPage.jsx";
-import BalancedMatchesPage from "./components/BalancedMatchesPage.jsx";
-import InPlayStatusPage from "./components/InPlayStatusPage.jsx";
-import MainStrategyPage from "./components/MainStrategyPage.jsx";
+'use client'
+
+import { useMemo, useState } from "react";
+import DayTabs from "./DayTabs";
+import GameList from "./GameList";
+import LoginPage from "./LoginPage";
+import LoginResultPage from "./LoginResultPage";
+import FootballEventsPage from "./FootballEventsPage";
+import FootballEventsAllPage from "./FootballEventsAllPage";
+import TodayOddsPage from "./TodayOddsPage";
+import InPlayBrazilSerieAPage from "./InPlayBrazilSerieAPage";
+import BestMatchesPage from "./BestMatchesPage";
+import BestMatchesToLayPage from "./BestMatchesToLayPage";
+import BestStrategyPage from "./BestStrategyPage";
+import BalancedMatchesPage from "./BalancedMatchesPage";
+import InPlayStatusPage from "./InPlayStatusPage";
+import MainStrategyPage from "./MainStrategyPage";
 
 const DAYS_TO_SHOW = 7;
 
-function buildDayList() {
+interface Day {
+  iso: string;
+  label: string;
+}
+
+function buildDayList(): Day[] {
   const today = new Date();
   return Array.from({ length: DAYS_TO_SHOW }, (_, index) => {
     const date = new Date(today);
@@ -31,11 +38,26 @@ function buildDayList() {
   });
 }
 
+type Page =
+  | "login"
+  | "result"
+  | "football"
+  | "events"
+  | "events-all"
+  | "today-odds"
+  | "main-strategy"
+  | "inplay-brasil-serie-a"
+  | "best-matches"
+  | "best-matches-to-lay"
+  | "best-strategy"
+  | "balanced-matches"
+  | "balanced-status";
+
 export default function App() {
   const days = useMemo(buildDayList, []);
-  const [selectedDay, setSelectedDay] = useState(days[0].iso);
-  const [page, setPage] = useState("login");
-  const [loginResult, setLoginResult] = useState(null);
+  const [selectedDay, setSelectedDay] = useState<string>(days[0].iso);
+  const [page, setPage] = useState<Page>("login");
+  const [loginResult, setLoginResult] = useState<any>(null);
 
   return (
     <div className="app">
@@ -131,7 +153,7 @@ export default function App() {
         />
       ) : (
         <LoginPage
-          onResult={(result) => {
+          onResult={(result: any) => {
             setLoginResult(result);
             setPage("result");
           }}
@@ -140,4 +162,3 @@ export default function App() {
     </div>
   );
 }
-

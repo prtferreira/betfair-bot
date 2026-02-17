@@ -1,6 +1,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-function buildTodayIso() {
+interface Entry {
+  marketId: string;
+  teams: string;
+  startTime: string;
+  status: string | null;
+}
+
+interface InPlayStatusPageProps {
+  onBack: () => void;
+}
+
+interface State {
+  loading: boolean;
+  error: string | null;
+  entries: Entry[];
+  updatedAt: Date | null;
+}
+
+function buildTodayIso(): string {
   const today = new Date();
   return [
     today.getFullYear(),
@@ -9,17 +27,15 @@ function buildTodayIso() {
   ].join("-");
 }
 
-function statusClassName(status) {
-  if (!status) {
-    return "status-pill status-pill--unknown";
-  }
+function statusClassName(status: string | null): string {
+  if (!status) return "status-pill status-pill--unknown";
   const key = status.toLowerCase().replace(/\s+/g, "-");
   return `status-pill status-pill--${key}`;
 }
 
-export default function InPlayStatusPage({ onBack }) {
+export default function InPlayStatusPage({ onBack }: InPlayStatusPageProps) {
   const todayIso = useMemo(buildTodayIso, []);
-  const [state, setState] = useState({
+  const [state, setState] = useState<State>({
     loading: true,
     error: null,
     entries: [],
@@ -35,14 +51,13 @@ export default function InPlayStatusPage({ onBack }) {
         ...prev,
         loading: initial ? true : prev.loading
       }));
-      fetch(`/api/betfair/balanced-games/status?date=${encodeURIComponent(todayIso)}&ts=${Date.now()}`)
+
+      fetch(`http://localhost:8089/api/betfair/balanced-games/status?date=${encodeURIComponent(todayIso)}&ts=${Date.now()}`)
         .then((response) => {
-          if (!response.ok) {
-            throw new Error("Failed to load in-play statuses");
-          }
+          if (!response.ok) throw new Error("Failed to load in-play statuses");
           return response.json();
         })
-        .then((entries) => {
+        .then((entries: Entry[]) => {
           if (!active) return;
           setState({
             loading: false,
@@ -51,7 +66,7 @@ export default function InPlayStatusPage({ onBack }) {
             updatedAt: new Date()
           });
         })
-        .catch((error) => {
+        .catch((error: Error) => {
           if (!active) return;
           setState({
             loading: false,
