@@ -54,7 +54,7 @@ export default function FootballEventsPage({ onBack }: FootballEventsPageProps) 
       <DayTabs days={days} selectedDay={selectedDay} onSelect={setSelectedDay} />
 
       <main>
-        <GameList date={selectedDay} apiPath="/api/betfair/football" />
+        <GameList date={selectedDay} apiPath="http://localhost:8089/api/betfair/football" />
       </main>
     </>
   );

@@ -26,7 +26,7 @@ export default function FootballEventsAllPage({ onBack }: FootballEventsAllPageP
       </header>
 
       <main>
-        <GameList apiPath="/api/betfair/events" includeDate={false} />
+        <GameList apiPath="http://localhost:8089/api/betfair/events" includeDate={false} />
       </main>
     </>
   );

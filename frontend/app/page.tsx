@@ -8,6 +8,9 @@ export default function Home() {
       <Link href="/simulator">
         Go to Simulator
       </Link>
+      <Link href="/scanner">
+        Go to Scanner
+      </Link>
     </main>
   );
 }

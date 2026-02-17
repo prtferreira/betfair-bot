@@ -109,7 +109,7 @@ export default function App() {
           />
 
           <main>
-            <GameList date={selectedDay} apiPath="/api/betfair/football" />
+            <GameList date={selectedDay} apiPath="http://localhost:8089/api/betfair/football" />
           </main>
         </>
       ) : page === "events" ? (
