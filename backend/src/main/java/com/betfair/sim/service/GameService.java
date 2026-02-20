@@ -1,12 +1,12 @@
 package com.betfair.sim.service;
 
 import com.betfair.sim.model.Game;
+import com.betfair.sim.model.EventMarket;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -51,7 +51,7 @@ public class GameService {
       BetfairApiClient betfairApiClient,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
-    this.followedGamesDir = Paths.get(followedGamesDir);
+    this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
   }
 
   public List<Game> gamesForDate(String date) {
@@ -100,9 +100,7 @@ public class GameService {
       return List.of();
     }
     LocalDate localDate = LocalDate.parse(date);
-    List<Game> games = betfairApiClient.listGames(localDate);
-    applySyntheticOdds(games, localDate);
-    return games;
+    return betfairApiClient.listMatchOddsForDate(localDate);
   }
 
   public List<Game> betfairFootballEvents() {
@@ -136,6 +134,13 @@ public class GameService {
     return betfairApiClient.fetchEventsRaw(null);
   }
 
+  public List<EventMarket> betfairEventMarkets(String eventId, List<String> marketTypes) {
+    if (!betfairApiClient.isEnabled()) {
+      return List.of();
+    }
+    return betfairApiClient.listMarketsForEvent(eventId, marketTypes);
+  }
+
   public Path saveFollowedMarketIds(String date, List<String> marketIds) {
     String resolvedDate = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
     List<String> ids = marketIds == null ? List.of() : marketIds;
@@ -154,10 +159,41 @@ public class GameService {
     String resolvedDate = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
     List<String> lines = entries == null ? List.of() : entries;
     Path outputFile = followedGamesDir.resolve("selectedGames-" + resolvedDate + ".txt");
+    Path gamesToFollowFile = followedGamesDir.resolve("gamesToFollow.txt");
 
     try {
       Files.createDirectories(followedGamesDir);
-      Files.write(outputFile, lines, StandardCharsets.UTF_8);
+      List<String> existing = Files.exists(outputFile)
+          ? Files.readAllLines(outputFile, StandardCharsets.UTF_8)
+          : List.of();
+      List<String> mergedLines = new ArrayList<>();
+      mergedLines.addAll(existing);
+      for (String line : lines) {
+        if (line == null || line.isBlank()) {
+          continue;
+        }
+        if (!mergedLines.contains(line)) {
+          mergedLines.add(line);
+        }
+      }
+      Files.write(outputFile, mergedLines, StandardCharsets.UTF_8);
+
+      List<String> existingFollowed = Files.exists(gamesToFollowFile)
+          ? Files.readAllLines(gamesToFollowFile, StandardCharsets.UTF_8)
+          : List.of();
+      List<String> marketIds =
+          mergedLines.stream()
+              .map(line -> line.split(",", 2)[0].trim())
+              .filter(id -> !id.isBlank())
+              .distinct()
+              .toList();
+      List<String> mergedMarketIds = new ArrayList<>(existingFollowed);
+      for (String marketId : marketIds) {
+        if (!mergedMarketIds.contains(marketId)) {
+          mergedMarketIds.add(marketId);
+        }
+      }
+      Files.write(gamesToFollowFile, mergedMarketIds, StandardCharsets.UTF_8);
       return outputFile;
     } catch (IOException ex) {
       throw new UncheckedIOException("Failed to save selected games", ex);

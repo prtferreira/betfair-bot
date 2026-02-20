@@ -1,6 +1,7 @@
 package com.betfair.sim.controller;
 
 import com.betfair.sim.model.Game;
+import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.BestStrategyMonitorEntry;
 import com.betfair.sim.model.FollowedGamesRequest;
 import com.betfair.sim.model.SelectedGamesRequest;
@@ -65,6 +66,20 @@ public class TradeController {
   @GetMapping("/api/betfair/events/raw")
   public String betfairFootballEventsRaw() {
     return gameService.betfairFootballEventsRaw();
+  }
+
+  @GetMapping("/api/betfair/event-markets")
+  public List<EventMarket> betfairEventMarkets(
+      @RequestParam(name = "eventId") String eventId,
+      @RequestParam(name = "marketTypes", required = false) String marketTypes) {
+    List<String> requestedTypes =
+        marketTypes == null || marketTypes.isBlank()
+            ? List.of()
+            : java.util.Arrays.stream(marketTypes.split(","))
+                .map(String::trim)
+                .filter(type -> !type.isBlank())
+                .toList();
+    return gameService.betfairEventMarkets(eventId, requestedTypes);
   }
 
   @GetMapping("/api/betfair/today-odds")

@@ -1,6 +1,8 @@
 package com.betfair.sim.service;
 
 import com.betfair.sim.model.Game;
+import com.betfair.sim.model.EventMarket;
+import com.betfair.sim.model.EventSelection;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -89,7 +92,7 @@ public class BetfairApiClient {
     try {
       Instant dayStart = resolvedDate.atStartOfDay(ZoneOffset.UTC).toInstant();
       Instant dayEnd = resolvedDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-      Instant start = resolvedDate.equals(LocalDate.now(ZoneOffset.UTC)) ? now : dayStart;
+      Instant start = dayStart;
       if (start.isAfter(dayEnd)) {
         return List.of();
       }
@@ -101,6 +104,17 @@ public class BetfairApiClient {
           dayEnd);
 
       List<MatchOddsMarket> markets = listMatchOddsMarketsForWindows(start, dayEnd);
+      List<MatchOddsMarket> inPlayMarkets = listInPlayFootballMarkets();
+      if (!inPlayMarkets.isEmpty()) {
+        Map<String, MatchOddsMarket> merged = new LinkedHashMap<>();
+        for (MatchOddsMarket market : markets) {
+          merged.put(market.marketId, market);
+        }
+        for (MatchOddsMarket market : inPlayMarkets) {
+          merged.putIfAbsent(market.marketId, market);
+        }
+        markets = new ArrayList<>(merged.values());
+      }
       if (markets.isEmpty()) {
         return List.of();
       }
@@ -149,12 +163,6 @@ public class BetfairApiClient {
               drawOdds,
               awayOdds);
         }
-        if (odds != null && odds.inPlay) {
-          continue;
-        }
-        if (market.startTime != null && market.startTime.isBefore(now)) {
-          continue;
-        }
         Double homeOdds = odds == null ? null : odds.backOddsBySelection.get(market.homeSelectionId);
         Double drawOdds =
             (odds == null || market.drawSelectionId < 0)
@@ -169,7 +177,7 @@ public class BetfairApiClient {
         Double awayLayOdds = odds == null ? null : odds.layOddsBySelection.get(market.awaySelectionId);
         Game game =
             new Game(
-                market.marketId,
+                market.eventId,
                 "Football",
                 market.league,
                 market.homeTeam,
@@ -183,6 +191,7 @@ public class BetfairApiClient {
         game.setDrawSelectionId(market.drawSelectionId);
         game.setAwaySelectionId(market.awaySelectionId);
         game.setMarketStatus(odds == null ? "" : odds.status);
+        game.setInPlay(odds != null && odds.inPlay);
         game.setHomeLayOdds(homeLayOdds);
         game.setDrawLayOdds(drawLayOdds);
         game.setAwayLayOdds(awayLayOdds);
@@ -268,6 +277,7 @@ public class BetfairApiClient {
         game.setDrawSelectionId(market.drawSelectionId);
         game.setAwaySelectionId(market.awaySelectionId);
         game.setMarketStatus(odds.status);
+        game.setInPlay(odds.inPlay);
         game.setHomeLayOdds(homeLayOdds);
         game.setDrawLayOdds(drawLayOdds);
         game.setAwayLayOdds(awayLayOdds);
@@ -361,6 +371,7 @@ public class BetfairApiClient {
         game.setDrawSelectionId(market.drawSelectionId);
         game.setAwaySelectionId(market.awaySelectionId);
         game.setMarketStatus(odds == null ? "" : odds.status);
+        game.setInPlay(odds != null && odds.inPlay);
         game.setHomeLayOdds(homeLayOdds);
         game.setDrawLayOdds(drawLayOdds);
         game.setAwayLayOdds(awayLayOdds);
@@ -385,6 +396,46 @@ public class BetfairApiClient {
     } catch (Exception ex) {
       LOGGER.warn("Betfair listMatchOddsByMarketIds failed", ex);
       return List.of();
+    }
+  }
+
+  public Map<String, EventIdentity> resolveEventIdentityForMarketIds(List<String> marketIds) {
+    if (!isEnabled()) {
+      return Map.of();
+    }
+    if (marketIds == null || marketIds.isEmpty()) {
+      return Map.of();
+    }
+
+    List<String> uniqueMarketIds =
+        marketIds.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(id -> !id.isBlank())
+            .distinct()
+            .toList();
+    if (uniqueMarketIds.isEmpty()) {
+      return Map.of();
+    }
+
+    try {
+      Map<String, EventRef> refs = fetchEventRefsForMarkets(uniqueMarketIds);
+      Map<String, EventIdentity> byMarketId = new LinkedHashMap<>();
+      for (String marketId : uniqueMarketIds) {
+        EventRef ref = refs.get(marketId);
+        if (ref == null) {
+          continue;
+        }
+        byMarketId.put(
+            marketId,
+            new EventIdentity(
+                ref.eventId() == null ? "" : ref.eventId(),
+                ref.eventName() == null ? "" : ref.eventName()));
+      }
+      return byMarketId;
+    } catch (Exception ex) {
+      LOGGER.warn("Betfair resolveEventIdentityForMarketIds failed", ex);
+      return Map.of();
     }
   }
 
@@ -662,6 +713,65 @@ public class BetfairApiClient {
     }
   }
 
+  public List<EventMarket> listMarketsForEvent(String eventId, List<String> marketTypes) {
+    if (!isEnabled()) {
+      LOGGER.warn("Betfair API disabled. appKeyPresent={}, sessionTokenPresent={}", hasAppKey(), hasSessionToken());
+      return List.of();
+    }
+    if (eventId == null || eventId.isBlank()) {
+      return List.of();
+    }
+
+    HttpEntity<List<Map<String, Object>>> request =
+        new HttpEntity<>(
+            List.of(buildListEventMarketsCatalogueRequest(List.of(eventId.trim()))),
+            buildHeaders());
+    try {
+      String response = restTemplate.postForObject(rpcBaseUrl, request, String.class);
+      if (response == null || response.isBlank()) {
+        return List.of();
+      }
+      List<EventMarket> markets = new ArrayList<>(parseEventMarkets(response, eventId.trim()));
+      Set<String> allowedTypes =
+          marketTypes == null
+              ? Set.of()
+              : marketTypes.stream()
+                  .filter(Objects::nonNull)
+                  .map(this::normalizeMarketType)
+                  .filter(type -> !type.isBlank())
+                  .collect(Collectors.toSet());
+      if (!allowedTypes.isEmpty()) {
+        markets =
+            markets.stream()
+                .filter(m -> allowedTypes.contains(normalizeMarketType(m.getMarketType())))
+                .collect(Collectors.toCollection(ArrayList::new));
+      }
+      Map<String, MarketBookOdds> oddsByMarket =
+          fetchMarketBookOdds(
+              markets.stream().map(EventMarket::getMarketId).filter(Objects::nonNull).toList(),
+              LocalDate.now(ZoneOffset.UTC));
+      for (EventMarket market : markets) {
+        MarketBookOdds odds = oddsByMarket.get(market.getMarketId());
+        market.setMarketStatus(odds == null ? "" : odds.status);
+        if (odds == null || market.getSelections() == null) {
+          continue;
+        }
+        for (EventSelection selection : market.getSelections()) {
+          if (selection == null || selection.getSelectionId() == null) {
+            continue;
+          }
+          selection.setBackOdds(odds.backOddsBySelection.get(selection.getSelectionId()));
+          selection.setLayOdds(odds.layOddsBySelection.get(selection.getSelectionId()));
+        }
+      }
+      markets.sort(Comparator.comparing(EventMarket::getStartTime, Comparator.nullsLast(String::compareTo)));
+      return markets;
+    } catch (Exception ex) {
+      LOGGER.warn("Betfair listMarketsForEvent failed for eventId={}", eventId, ex);
+      return List.of();
+    }
+  }
+
   private List<Game> listEvents(LocalDate date) {
     if (!isEnabled()) {
       LOGGER.warn("Betfair API disabled. appKeyPresent={}, sessionTokenPresent={}", hasAppKey(), hasSessionToken());
@@ -850,7 +960,6 @@ public class BetfairApiClient {
     Map<String, Object> filter = new HashMap<>();
     filter.put("eventTypeIds", List.of(FOOTBALL_EVENT_TYPE_ID));
     filter.put("eventIds", eventIds);
-    filter.put("inPlayOnly", false);
 
     Map<String, Object> params = new HashMap<>();
     params.put("filter", filter);
@@ -877,6 +986,27 @@ public class BetfairApiClient {
     Map<String, Object> params = new HashMap<>();
     params.put("filter", filter);
     params.put("maxResults", "200");
+    params.put(
+        "marketProjection",
+        List.of("EVENT", "COMPETITION", "RUNNER_DESCRIPTION", "MARKET_START_TIME"));
+
+    Map<String, Object> rpcRequest = new HashMap<>();
+    rpcRequest.put("jsonrpc", "2.0");
+    rpcRequest.put("method", "SportsAPING/v1.0/listMarketCatalogue");
+    rpcRequest.put("params", params);
+    rpcRequest.put("id", 1);
+    return rpcRequest;
+  }
+
+  private Map<String, Object> buildListInPlayAllMarketCatalogueRequest() {
+    Map<String, Object> filter = new HashMap<>();
+    filter.put("eventTypeIds", List.of(FOOTBALL_EVENT_TYPE_ID));
+    filter.put("marketTypeCodes", List.of("MATCH_ODDS"));
+    filter.put("inPlayOnly", true);
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("filter", filter);
+    params.put("maxResults", "500");
     params.put(
         "marketProjection",
         List.of("EVENT", "COMPETITION", "RUNNER_DESCRIPTION", "MARKET_START_TIME"));
@@ -941,6 +1071,25 @@ public class BetfairApiClient {
       return cached;
     }
     return sessionToken == null ? "" : sessionToken;
+  }
+
+  private List<MatchOddsMarket> listInPlayFootballMarkets() {
+    try {
+      HttpEntity<List<Map<String, Object>>> request =
+          new HttpEntity<>(List.of(buildListInPlayAllMarketCatalogueRequest()), buildHeaders());
+      String response = restTemplate.postForObject(rpcBaseUrl, request, String.class);
+      if (response == null || response.isBlank()) {
+        return List.of();
+      }
+      return parseMatchOddsMarkets(response);
+    } catch (Exception ex) {
+      LOGGER.warn("Betfair listInPlayFootballMarkets failed", ex);
+      return List.of();
+    }
+  }
+
+  private String normalizeMarketType(String value) {
+    return value == null ? "" : value.trim().toUpperCase();
   }
 
   private List<AuxiliaryMarket> parseAuxiliaryMarkets(String response) throws Exception {
@@ -1193,6 +1342,57 @@ public class BetfairApiClient {
               homeRunner.selectionId,
               Objects.requireNonNullElse(drawSelectionId, -1L),
               awayRunner.selectionId));
+    }
+    return markets;
+  }
+
+  private List<EventMarket> parseEventMarkets(String response, String eventId) throws Exception {
+    JsonNode root = objectMapper.readTree(response);
+    if (!root.isArray() || root.isEmpty()) {
+      return List.of();
+    }
+    JsonNode first = root.get(0);
+    JsonNode error = first.path("error");
+    if (!error.isMissingNode() && !error.isNull()) {
+      LOGGER.warn("Betfair listMarketCatalogue error: {}", error.toString());
+      return List.of();
+    }
+    JsonNode result = first.path("result");
+    if (!result.isArray()) {
+      return List.of();
+    }
+
+    List<EventMarket> markets = new ArrayList<>();
+    for (JsonNode node : result) {
+      String nodeEventId = node.path("event").path("id").asText("");
+      if (!eventId.equals(nodeEventId)) {
+        continue;
+      }
+      String marketId = node.path("marketId").asText("");
+      if (marketId.isBlank()) {
+        continue;
+      }
+      String marketName = node.path("marketName").asText("");
+      String marketType =
+          node.path("description")
+              .path("marketType")
+              .asText(
+                  node.path("description")
+                      .path("marketTypeCode")
+                      .asText(node.path("marketTypeCode").asText("")));
+      String startTime = node.path("marketStartTime").asText("");
+      EventMarket eventMarket = new EventMarket(marketId, marketName, marketType, startTime);
+      List<EventSelection> selections = new ArrayList<>();
+      for (JsonNode runner : node.path("runners")) {
+        long selectionId = runner.path("selectionId").asLong(-1L);
+        String runnerName = runner.path("runnerName").asText("");
+        if (selectionId <= 0L) {
+          continue;
+        }
+        selections.add(new EventSelection(selectionId, runnerName, null, null));
+      }
+      eventMarket.setSelections(selections);
+      markets.add(eventMarket);
     }
     return markets;
   }
@@ -2044,6 +2244,24 @@ public class BetfairApiClient {
 
     public String getLabel() {
       return label;
+    }
+  }
+
+  public static final class EventIdentity {
+    private final String eventId;
+    private final String eventName;
+
+    public EventIdentity(String eventId, String eventName) {
+      this.eventId = eventId;
+      this.eventName = eventName;
+    }
+
+    public String getEventId() {
+      return eventId;
+    }
+
+    public String getEventName() {
+      return eventName;
     }
   }
 

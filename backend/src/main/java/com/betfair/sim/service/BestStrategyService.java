@@ -7,7 +7,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,7 +37,7 @@ public class BestStrategyService {
       BetfairApiClient betfairApiClient,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
-    this.followedGamesDir = Paths.get(followedGamesDir);
+    this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
     this.oddsSnapshotsDir = this.followedGamesDir.resolve("best-strategy-odds");
   }
 

@@ -9,6 +9,7 @@ public class Game {
   private String startTime;
   private String marketId;
   private String marketStatus;
+  private Boolean inPlay;
   private String htMarketStatus;
   private String ou05MarketStatus;
   private Double homeOdds;
@@ -128,6 +129,14 @@ public class Game {
 
   public void setMarketStatus(String marketStatus) {
     this.marketStatus = marketStatus;
+  }
+
+  public Boolean getInPlay() {
+    return inPlay;
+  }
+
+  public void setInPlay(Boolean inPlay) {
+    this.inPlay = inPlay;
   }
 
   public String getHtMarketStatus() {

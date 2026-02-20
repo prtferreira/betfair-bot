@@ -1,9 +1,5 @@
-import App from './components/App'
+import { redirect } from "next/navigation";
 
 export default function SimulatorPage() {
-  return (
-    <main style={{ padding: "2rem" }}>
-      <App />
-    </main>
-  );
+  redirect("/games");
 }
