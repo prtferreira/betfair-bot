@@ -5,6 +5,7 @@ import Link from "next/link";
 import "./games.css";
 
 type TabKey = "today" | "tomorrow" | "afterTomorrow";
+type PhaseFilter = "all" | "inPlay" | "scheduled";
 
 interface Game {
   id: string;
@@ -54,6 +55,24 @@ const TAB_LABEL: Record<TabKey, string> = {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8089";
+const ODDS_MIN = 1.01;
+const ODDS_MAX = 100;
+const ODDS_STEP = 0.01;
+const SLOW_END = 5;
+const SLOW_PORTION = 0.7;
+const SLIDER_MIN = 0;
+const SLIDER_MAX = 1000;
+
+interface OddsRange {
+  min: number;
+  max: number;
+}
+
+interface MatchOddsFilter {
+  home: OddsRange;
+  draw: OddsRange;
+  away: OddsRange;
+}
 
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -96,8 +115,72 @@ function compareByStartAndName(a: Game, b: Game): number {
   return eventName(a).localeCompare(eventName(b));
 }
 
+function isInPlayOrStarted(game: Game): boolean {
+  if (game.inPlay) {
+    return true;
+  }
+  return toEpochMs(game.startTime) <= Date.now();
+}
+
 function submittedGameKey(game: SubmittedGame): string {
   return `${game.eventId}|${game.marketId}|${game.date}`;
+}
+
+function defaultOddsRange(): OddsRange {
+  return { min: ODDS_MIN, max: ODDS_MAX };
+}
+
+function defaultFilter(): MatchOddsFilter {
+  return {
+    home: defaultOddsRange(),
+    draw: defaultOddsRange(),
+    away: defaultOddsRange(),
+  };
+}
+
+function isDefaultRange(range: OddsRange): boolean {
+  return range.min <= ODDS_MIN && range.max >= ODDS_MAX;
+}
+
+function oddsWithinRange(odds: number | undefined, range: OddsRange): boolean {
+  if (odds == null || Number.isNaN(odds)) {
+    return isDefaultRange(range);
+  }
+  return odds >= range.min && odds <= range.max;
+}
+
+function clampOdds(value: number): number {
+  if (Number.isNaN(value)) {
+    return ODDS_MIN;
+  }
+  return Math.min(ODDS_MAX, Math.max(ODDS_MIN, value));
+}
+
+function toPercent(value: number): number {
+  return ((value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+}
+
+function sliderToOdds(sliderValue: number): number {
+  const clamped = Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, sliderValue));
+  const t = (clamped - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN);
+  if (t <= SLOW_PORTION) {
+    const local = t / SLOW_PORTION;
+    return Number((ODDS_MIN + (SLOW_END - ODDS_MIN) * local).toFixed(2));
+  }
+  const local = (t - SLOW_PORTION) / (1 - SLOW_PORTION);
+  return Number((SLOW_END + (ODDS_MAX - SLOW_END) * local).toFixed(2));
+}
+
+function oddsToSlider(oddsValue: number): number {
+  const odds = clampOdds(oddsValue);
+  if (odds <= SLOW_END) {
+    const local = (odds - ODDS_MIN) / (SLOW_END - ODDS_MIN);
+    return Math.round(SLIDER_MIN + local * SLOW_PORTION * (SLIDER_MAX - SLIDER_MIN));
+  }
+  const local = (odds - SLOW_END) / (ODDS_MAX - SLOW_END);
+  return Math.round(
+    SLIDER_MIN + (SLOW_PORTION + local * (1 - SLOW_PORTION)) * (SLIDER_MAX - SLIDER_MIN)
+  );
 }
 
 export default function GamesPage() {
@@ -117,6 +200,10 @@ export default function GamesPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [matchOddsFilter, setMatchOddsFilter] = useState<MatchOddsFilter>(
+    defaultFilter()
+  );
+  const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>("all");
 
   const datesByTab = useMemo(() => {
     const now = new Date();
@@ -235,10 +322,26 @@ export default function GamesPage() {
 
   const current = dayData[activeTab];
   const selectedForTab = selectedIds[activeTab] ?? new Set<string>();
+  const filteredGames = useMemo(
+    () =>
+      current.games.filter(
+        (game) =>
+          (phaseFilter === "all" ||
+            (phaseFilter === "inPlay" && isInPlayOrStarted(game)) ||
+            (phaseFilter === "scheduled" && !isInPlayOrStarted(game))) &&
+          oddsWithinRange(game.homeOdds, matchOddsFilter.home) &&
+          oddsWithinRange(game.drawOdds, matchOddsFilter.draw) &&
+          oddsWithinRange(game.awayOdds, matchOddsFilter.away)
+      ),
+    [current.games, matchOddsFilter, phaseFilter]
+  );
+  const selectedVisibleCount = filteredGames.filter((game) =>
+    selectedForTab.has(game.id)
+  ).length;
 
   const allSelected =
-    current.games.length > 0 &&
-    current.games.every((game) => selectedForTab.has(game.id));
+    filteredGames.length > 0 &&
+    filteredGames.every((game) => selectedForTab.has(game.id));
 
   const toggleGame = (tab: TabKey, eventId: string): void => {
     setSelectedIds((prev) => {
@@ -253,12 +356,56 @@ export default function GamesPage() {
   };
 
   const selectAllForTab = (tab: TabKey): void => {
-    const ids = dayData[tab].games.map((game) => game.id);
-    setSelectedIds((prev) => ({ ...prev, [tab]: new Set(ids) }));
+    const ids = filteredGames.map((game) => game.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev[tab]);
+      ids.forEach((id) => next.add(id));
+      return { ...prev, [tab]: next };
+    });
   };
 
   const clearAllForTab = (tab: TabKey): void => {
     setSelectedIds((prev) => ({ ...prev, [tab]: new Set() }));
+  };
+
+  const updateOddsRange = (
+    runner: keyof MatchOddsFilter,
+    edge: keyof OddsRange,
+    value: number
+  ): void => {
+    setMatchOddsFilter((prev) => {
+      const currentRange = prev[runner];
+      const nextValue = clampOdds(value);
+      let nextMin = currentRange.min;
+      let nextMax = currentRange.max;
+      if (edge === "min") {
+        nextMin = Math.min(nextValue, currentRange.max);
+      } else {
+        nextMax = Math.max(nextValue, currentRange.min);
+      }
+      return {
+        ...prev,
+        [runner]: {
+          min: Number(nextMin.toFixed(2)),
+          max: Number(nextMax.toFixed(2)),
+        },
+      };
+    });
+  };
+
+  const updateOddsInput = (
+    runner: keyof MatchOddsFilter,
+    edge: keyof OddsRange,
+    rawValue: string
+  ): void => {
+    if (!rawValue.trim()) {
+      return;
+    }
+    updateOddsRange(runner, edge, Number(rawValue));
+  };
+
+  const resetFilters = (): void => {
+    setMatchOddsFilter(defaultFilter());
   };
 
   const collectSelectedGames = (): SubmittedGame[] => {
@@ -394,6 +541,134 @@ export default function GamesPage() {
           Date: <strong>{datesByTab[activeTab]}</strong>
         </p>
 
+        <div className="filter-panel">
+          <div className="filter-head">
+            <p className="filter-title">MATCH_ODDS filters (1.01 - 10.00)</p>
+            <button
+              type="button"
+              className="filter-reset"
+              onClick={resetFilters}
+            >
+              Reset filters
+            </button>
+          </div>
+          <div className="phase-filter-row">
+            <span className="phase-filter-label">Game phase:</span>
+            {(
+              [
+                ["all", "All"],
+                ["inPlay", "In-Play"],
+                ["scheduled", "Scheduled"],
+              ] as [PhaseFilter, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPhaseFilter(value)}
+                className={`phase-filter-button ${
+                  phaseFilter === value ? "phase-filter-button--active" : ""
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {(
+            [
+              ["home", "Home"],
+              ["draw", "Draw"],
+              ["away", "Away"],
+            ] as [keyof MatchOddsFilter, string][]
+          ).map(([runnerKey, label]) => (
+            <div key={runnerKey} className="filter-row">
+              <span className="filter-label">{label}</span>
+              <div className="filter-boxes">
+                <label className="filter-input-wrap">
+                  <span className="filter-input-prefix">@</span>
+                  <input
+                    type="number"
+                    min={ODDS_MIN}
+                    max={ODDS_MAX}
+                    step={ODDS_STEP}
+                    value={matchOddsFilter[runnerKey].min}
+                    onChange={(event) =>
+                      updateOddsInput(runnerKey, "min", event.currentTarget.value)
+                    }
+                  />
+                </label>
+                <span className="filter-to">to</span>
+                <label className="filter-input-wrap">
+                  <span className="filter-input-prefix">@</span>
+                  <input
+                    type="number"
+                    min={ODDS_MIN}
+                    max={ODDS_MAX}
+                    step={ODDS_STEP}
+                    value={matchOddsFilter[runnerKey].max}
+                    onChange={(event) =>
+                      updateOddsInput(runnerKey, "max", event.currentTarget.value)
+                    }
+                  />
+                </label>
+              </div>
+              <div className="filter-sliders filter-sliders--dual">
+                {(() => {
+                  const minSlider = oddsToSlider(matchOddsFilter[runnerKey].min);
+                  const maxSlider = oddsToSlider(matchOddsFilter[runnerKey].max);
+                  return (
+                    <>
+                <div
+                  className="dual-track"
+                  style={{
+                    background: `linear-gradient(to right, #d5dbe0 0%, #d5dbe0 ${toPercent(
+                      minSlider
+                    )}%, #7bbd92 ${toPercent(
+                      minSlider
+                    )}%, #7bbd92 ${toPercent(
+                      maxSlider
+                    )}%, #d5dbe0 ${toPercent(
+                      maxSlider
+                    )}%, #d5dbe0 100%)`,
+                  }}
+                />
+                <input
+                  className="dual-range dual-range--min"
+                  type="range"
+                  min={SLIDER_MIN}
+                  max={SLIDER_MAX}
+                  step={1}
+                  value={minSlider}
+                  onChange={(event) =>
+                    updateOddsRange(
+                      runnerKey,
+                      "min",
+                      sliderToOdds(Number(event.currentTarget.value))
+                    )
+                  }
+                />
+                <input
+                  className="dual-range dual-range--max"
+                  type="range"
+                  min={SLIDER_MIN}
+                  max={SLIDER_MAX}
+                  step={1}
+                  value={maxSlider}
+                  onChange={(event) =>
+                    updateOddsRange(
+                      runnerKey,
+                      "max",
+                      sliderToOdds(Number(event.currentTarget.value))
+                    )
+                  }
+                />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="action-row">
           <button
             type="button"
@@ -441,11 +716,11 @@ export default function GamesPage() {
         {!current.loading && !current.error && current.games.length > 0 ? (
           <>
             <p className="selected-line">
-              Selected: {selectedForTab.size} / {current.games.length}
+              Selected: {selectedVisibleCount} / {filteredGames.length}
               {allSelected ? " (all selected)" : ""}
             </p>
             <ul className="event-list">
-            {current.games.map((game) => (
+            {filteredGames.map((game) => (
                 <li key={game.id} className="event-row">
                   <div className="event-label">
                   <input
