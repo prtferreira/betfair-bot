@@ -1,6 +1,8 @@
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\BetfairStrategyApplication.java
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\controller\BetfairAuthController.java
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\controller\TradeController.java
+C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\model\AnalyticsGameEntry.java
+C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\model\AnalyticsGoalsEstimate.java
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\model\BestStrategyMonitorEntry.java
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\model\EventMarket.java
 C:\Development\Projects\betfair-bot\backend\src\main\java\com\betfair\sim\model\EventSelection.java

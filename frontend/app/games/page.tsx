@@ -19,6 +19,7 @@ interface Game {
   homeOdds?: number;
   drawOdds?: number;
   awayOdds?: number;
+  fullTime00Odds?: number;
 }
 
 interface DayState {
@@ -72,6 +73,7 @@ interface MatchOddsFilter {
   home: OddsRange;
   draw: OddsRange;
   away: OddsRange;
+  fullTime00: OddsRange;
 }
 
 function formatLocalDate(date: Date): string {
@@ -135,6 +137,7 @@ function defaultFilter(): MatchOddsFilter {
     home: defaultOddsRange(),
     draw: defaultOddsRange(),
     away: defaultOddsRange(),
+    fullTime00: defaultOddsRange(),
   };
 }
 
@@ -331,7 +334,8 @@ export default function GamesPage() {
             (phaseFilter === "scheduled" && !isInPlayOrStarted(game))) &&
           oddsWithinRange(game.homeOdds, matchOddsFilter.home) &&
           oddsWithinRange(game.drawOdds, matchOddsFilter.draw) &&
-          oddsWithinRange(game.awayOdds, matchOddsFilter.away)
+          oddsWithinRange(game.awayOdds, matchOddsFilter.away) &&
+          oddsWithinRange(game.fullTime00Odds, matchOddsFilter.fullTime00)
       ),
     [current.games, matchOddsFilter, phaseFilter]
   );
@@ -575,6 +579,7 @@ export default function GamesPage() {
           </div>
           {(
             [
+              ["fullTime00", "FT 0-0"],
               ["home", "Home"],
               ["draw", "Draw"],
               ["away", "Away"],
@@ -695,6 +700,9 @@ export default function GamesPage() {
           <Link href="/games/selected" className="market-link">
             View submitted games
           </Link>
+          <Link href="/games/analytics" className="market-link">
+            Go to Game Analytics
+          </Link>
         </div>
 
         {submitMessage ? <p className="hint">{submitMessage}</p> : null}
@@ -748,10 +756,25 @@ export default function GamesPage() {
                           ? `marketId: ${game.marketId}`
                           : "marketId: not found"}
                       </span>
-                      <span className="event-market-odds">
-                        H: {game.homeOdds ?? "-"} | D: {game.drawOdds ?? "-"} | A:{" "}
-                        {game.awayOdds ?? "-"}
-                      </span>
+                      <div className="event-market-board" aria-hidden="true">
+                        <div className="event-market-board__head">
+                          <span>Home</span>
+                          <span>Draw</span>
+                          <span>Away</span>
+                        </div>
+                        <div className="event-market-board__row">
+                          <span className="event-market-board__name">Match Odds</span>
+                          <span className="event-market-pill">{game.homeOdds ?? "-"}</span>
+                          <span className="event-market-pill">{game.drawOdds ?? "-"}</span>
+                          <span className="event-market-pill">{game.awayOdds ?? "-"}</span>
+                        </div>
+                        <div className="event-market-board__row">
+                          <span className="event-market-board__name">FT 0-0</span>
+                          <span className="event-market-pill event-market-pill--ftwide">
+                            {game.fullTime00Odds ?? "-"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <div className="event-actions">
                       <Link

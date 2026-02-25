@@ -409,6 +409,75 @@
   color: #2d3a33;
 }
 
+.event-market-board {
+  margin-top: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.event-market-board__head {
+  margin-left: 116px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+  color: #68727d;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.event-market-board__row {
+  display: grid;
+  grid-template-columns: 108px repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.event-market-board__name {
+  color: #4b5662;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.event-market-pill {
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid #cfd7de;
+  background: #f8fafc;
+  color: #2c3d4d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(17, 24, 39, 0.06);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: default;
+  user-select: none;
+}
+
+.event-market-pill--ftwide {
+  grid-column: 2 / 5;
+}
+
+@media (max-width: 860px) {
+  .event-market-board__head {
+    margin-left: 0;
+    grid-template-columns: repeat(3, minmax(56px, 1fr));
+  }
+
+  .event-market-board__row {
+    grid-template-columns: 1fr;
+  }
+
+  .event-market-board__name {
+    margin-bottom: -2px;
+  }
+
+  .event-market-pill--ftwide {
+    grid-column: auto;
+  }
+}
+
 .event-actions {
   grid-column: 2;
   margin-top: 4px;

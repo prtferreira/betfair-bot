@@ -3,6 +3,8 @@ package com.betfair.sim.controller;
 import com.betfair.sim.model.Game;
 import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.BestStrategyMonitorEntry;
+import com.betfair.sim.model.AnalyticsGameEntry;
+import com.betfair.sim.model.AnalyticsGoalsEstimate;
 import com.betfair.sim.model.FollowedGamesRequest;
 import com.betfair.sim.model.SelectedGamesRequest;
 import com.betfair.sim.model.SimulationRequest;
@@ -212,6 +214,19 @@ public class TradeController {
   public List<InPlayStatusEntry> balancedGamesStatus(
       @RequestParam(name = "date", required = false) String date) {
     return gameService.loadBalancedGameStatuses(date);
+  }
+
+  @GetMapping("/api/betfair/analytics/games")
+  public List<AnalyticsGameEntry> analyticsGames(
+      @RequestParam(name = "date", required = false) String date) {
+    return gameService.analyticsGamesByDate(date);
+  }
+
+  @GetMapping("/api/betfair/analytics/goals")
+  public AnalyticsGoalsEstimate analyticsGoals(
+      @RequestParam(name = "date", required = false) String date,
+      @RequestParam(name = "gameKey") String gameKey) {
+    return gameService.analyticsGoalsForGame(date, gameKey);
   }
 
   @PostMapping("/api/strategies/simulate")

@@ -206,6 +206,7 @@ public class BetfairApiClient {
           game.setHtHomeOdds(auxiliaryOdds.htHomeOdds);
           game.setHtDrawOdds(auxiliaryOdds.htDrawOdds);
           game.setHtAwayOdds(auxiliaryOdds.htAwayOdds);
+          game.setFullTime00Odds(auxiliaryOdds.fullTime00Odds);
           game.setOu05MarketStatus(auxiliaryOdds.ou05MarketStatus);
           game.setHtMarketStatus(auxiliaryOdds.htMarketStatus);
         }
@@ -386,6 +387,7 @@ public class BetfairApiClient {
           game.setHtHomeOdds(auxiliaryOdds.htHomeOdds);
           game.setHtDrawOdds(auxiliaryOdds.htDrawOdds);
           game.setHtAwayOdds(auxiliaryOdds.htAwayOdds);
+          game.setFullTime00Odds(auxiliaryOdds.fullTime00Odds);
           game.setOu05MarketStatus(auxiliaryOdds.ou05MarketStatus);
           game.setHtMarketStatus(auxiliaryOdds.htMarketStatus);
         }
@@ -844,7 +846,14 @@ public class BetfairApiClient {
     try {
       List<AuxiliaryMarket> auxMarkets = new ArrayList<>();
       List<String> auxiliaryMarketTypes =
-          List.of("OVER_UNDER_05", "OVER_UNDER_15", "OVER_UNDER_25", "HALF_TIME");
+          List.of(
+              "OVER_UNDER_05",
+              "OVER_UNDER_15",
+              "OVER_UNDER_25",
+              "HALF_TIME",
+              "CORRECT_SCORE",
+              "CORRECT_SCORE2",
+              "ALT_CORRECT_SCORE");
       for (String marketType : auxiliaryMarketTypes) {
         for (int i = 0; i < eventIds.size(); i += AUX_EVENT_BATCH_SIZE) {
           List<String> batch = eventIds.subList(i, Math.min(i + AUX_EVENT_BATCH_SIZE, eventIds.size()));
@@ -890,6 +899,11 @@ public class BetfairApiClient {
           target.htDrawOdds = odds.backOddsBySelection.get(market.drawSelectionId);
           target.htAwayOdds = odds.backOddsBySelection.get(market.secondarySelectionId);
           target.htMarketStatus = odds.status;
+        } else if (isCorrectScoreMarketType(market.marketType)) {
+          Double odd = odds.backOddsBySelection.get(market.primarySelectionId);
+          if (target.fullTime00Odds == null && odd != null) {
+            target.fullTime00Odds = odd;
+          }
         }
       }
       return byEvent;
@@ -1152,6 +1166,13 @@ public class BetfairApiClient {
                 nonDraw.get(0).selectionId,
                 nonDraw.get(1).selectionId,
                 draw.selectionId));
+      } else if (isCorrectScoreMarketType(marketType)) {
+        Optional<RunnerSelection> nilNil = findCorrectScoreRunner(node.path("runners"), 0, 0);
+        if (nilNil.isEmpty()) {
+          continue;
+        }
+        markets.add(
+            new AuxiliaryMarket(marketId, eventId, marketType, nilNil.get().selectionId, -1L, -1L));
       }
     }
     return markets;
@@ -1175,6 +1196,9 @@ public class BetfairApiClient {
     if (marketName.contains("half time") || marketName.contains("ht result")) {
       return "HALF_TIME";
     }
+    if (marketName.contains("correct score")) {
+      return "CORRECT_SCORE";
+    }
     return "";
   }
 
@@ -1187,6 +1211,39 @@ public class BetfairApiClient {
       }
     }
     return Optional.empty();
+  }
+
+  private Optional<RunnerSelection> findCorrectScoreRunner(
+      JsonNode runners, int homeScore, int awayScore) {
+    if (!runners.isArray()) {
+      return Optional.empty();
+    }
+    for (JsonNode runner : runners) {
+      String runnerName = runner.path("runnerName").asText("").trim();
+      if (runnerName.isBlank()) {
+        continue;
+      }
+      InferredScore parsed = parseScoreFromRunnerName(runnerName);
+      if (parsed == null || parsed.getHomeScore() == null || parsed.getAwayScore() == null) {
+        continue;
+      }
+      if (parsed.getHomeScore() == homeScore && parsed.getAwayScore() == awayScore) {
+        long selectionId = runner.path("selectionId").asLong(-1L);
+        if (selectionId > 0L) {
+          return Optional.of(new RunnerSelection(runnerName, selectionId));
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
+  private boolean isCorrectScoreMarketType(String marketType) {
+    if (marketType == null || marketType.isBlank()) {
+      return false;
+    }
+    return "CORRECT_SCORE".equals(marketType)
+        || "CORRECT_SCORE2".equals(marketType)
+        || "ALT_CORRECT_SCORE".equals(marketType);
   }
 
   private String auxiliaryGoalLineText(String marketType) {
@@ -2090,6 +2147,7 @@ public class BetfairApiClient {
     private Double htHomeOdds;
     private Double htDrawOdds;
     private Double htAwayOdds;
+    private Double fullTime00Odds;
     private String ou05MarketStatus;
     private String htMarketStatus;
   }

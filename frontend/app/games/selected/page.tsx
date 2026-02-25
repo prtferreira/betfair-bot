@@ -28,6 +28,7 @@ function toEpochMs(startTime?: string): number {
 
 export default function SubmittedGamesPage() {
   const [games, setGames] = useState<SubmittedGame[]>([]);
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   const clearSubmittedGames = (): void => {
     localStorage.removeItem(SUBMITTED_GAMES_KEY);
@@ -64,6 +65,57 @@ export default function SubmittedGamesPage() {
     return [...games].sort((a, b) => toEpochMs(a.startTime) - toEpochMs(b.startTime));
   }, [games]);
 
+  const availableDates = useMemo(() => {
+    const unique = new Set<string>();
+    for (const game of sorted) {
+      if (game.date) {
+        unique.add(game.date);
+      }
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [sorted]);
+
+  useEffect(() => {
+    if (dateFilter === "all") {
+      return;
+    }
+    if (!availableDates.includes(dateFilter)) {
+      setDateFilter("all");
+    }
+  }, [availableDates, dateFilter]);
+
+  const filteredGames = useMemo(() => {
+    if (dateFilter === "all") {
+      return sorted;
+    }
+    return sorted.filter((game) => game.date === dateFilter);
+  }, [sorted, dateFilter]);
+
+  const downloadReport = (): void => {
+    if (filteredGames.length === 0) {
+      return;
+    }
+    const generatedAt = new Date().toISOString();
+    const lines: string[] = ["date,game"];
+    for (const game of filteredGames) {
+      const csvLine = [game.date || "", game.eventName || ""]
+        .map((value) => `"${String(value ?? "").replaceAll("\"", "\"\"")}"`)
+        .join(",");
+      lines.push(csvLine);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const stamp = generatedAt.replaceAll(":", "-");
+    const suffix = dateFilter === "all" ? "all-dates" : dateFilter;
+    link.href = url;
+    link.download = `submitted-games-${suffix}-${stamp}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="selected-page">
       <section className="selected-panel">
@@ -71,15 +123,39 @@ export default function SubmittedGamesPage() {
           <Link href="/games">Back to games</Link>
         </p>
         <h1 className="selected-title">Submitted Games</h1>
-        <button type="button" className="selected-clear" onClick={clearSubmittedGames}>
-          Clear submitted games
-        </button>
+        <div className="selected-actions">
+          <label className="selected-filter">
+            <span>Filter by date</span>
+            <select
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.currentTarget.value)}
+            >
+              <option value="all">All dates</option>
+              {availableDates.map((date) => (
+                <option key={date} value={date}>
+                  {date}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="selected-report"
+            onClick={downloadReport}
+            disabled={filteredGames.length === 0}
+          >
+            Generate report (.txt)
+          </button>
+          <button type="button" className="selected-clear" onClick={clearSubmittedGames}>
+            Clear submitted games
+          </button>
+        </div>
 
-        {sorted.length === 0 ? (
+        {filteredGames.length === 0 ? (
           <p className="selected-hint">No submitted games yet.</p>
         ) : (
           <ul className="selected-list">
-            {sorted.map((game) => (
+            {filteredGames.map((game) => (
               <li
                 key={`${game.eventId}:${game.marketId}:${game.date}`}
                 className="selected-row"

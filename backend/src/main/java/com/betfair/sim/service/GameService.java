@@ -2,9 +2,12 @@ package com.betfair.sim.service;
 
 import com.betfair.sim.model.Game;
 import com.betfair.sim.model.EventMarket;
+import com.betfair.sim.model.AnalyticsGameEntry;
+import com.betfair.sim.model.AnalyticsGoalsEstimate;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -12,6 +15,10 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -229,6 +236,72 @@ public class GameService {
     }
   }
 
+  public List<AnalyticsGameEntry> analyticsGamesByDate(String date) {
+    String resolvedDate = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
+    LocalDate localDate = LocalDate.parse(resolvedDate);
+    String folder = localDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+    Path inputDir = followedGamesDir.resolve(folder);
+    if (!Files.exists(inputDir) || !Files.isDirectory(inputDir)) {
+      return List.of();
+    }
+
+    Map<String, LinkedHashSet<String>> marketsByGame = new LinkedHashMap<>();
+    Map<String, List<Path>> filesByGame = new HashMap<>();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(inputDir, "*.txt")) {
+      for (Path file : stream) {
+        String fileName = file.getFileName().toString();
+        ParsedAnalyticsFile parsed = parseAnalyticsFileName(fileName, folder);
+        if (parsed == null) {
+          continue;
+        }
+        marketsByGame.computeIfAbsent(parsed.gameKey(), key -> new LinkedHashSet<>()).add(parsed.marketType());
+        filesByGame.computeIfAbsent(parsed.gameKey(), key -> new ArrayList<>()).add(file);
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to read analytics games", ex);
+    }
+
+    List<AnalyticsGameEntry> entries = new ArrayList<>();
+    for (Map.Entry<String, LinkedHashSet<String>> entry : marketsByGame.entrySet()) {
+      String gameKey = entry.getKey();
+      List<String> markets = new ArrayList<>(entry.getValue());
+      markets.sort(String::compareTo);
+      entries.add(
+          new AnalyticsGameEntry(
+              gameKey,
+              gameKey.replace('_', ' ').trim(),
+              markets));
+      AnalyticsGoalsEstimate estimate = estimateGoalsFromFiles(gameKey, filesByGame.get(gameKey));
+      entries.get(entries.size() - 1).setGuessedGoals(estimate.getGuessedGoals());
+    }
+    entries.sort(Comparator.comparing(AnalyticsGameEntry::getDisplayName, String::compareToIgnoreCase));
+    return entries;
+  }
+
+  public AnalyticsGoalsEstimate analyticsGoalsForGame(String date, String gameKey) {
+    String resolvedDate = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
+    LocalDate localDate = LocalDate.parse(resolvedDate);
+    String folder = localDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+    Path inputDir = followedGamesDir.resolve(folder);
+    if (!Files.exists(inputDir) || !Files.isDirectory(inputDir) || gameKey == null || gameKey.isBlank()) {
+      return new AnalyticsGoalsEstimate(gameKey == null ? "" : gameKey, "", 0, List.of());
+    }
+
+    String prefix = gameKey + "_" + folder + "_OVER_UNDER_";
+    List<Path> files = new ArrayList<>();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(inputDir, "*.txt")) {
+      for (Path file : stream) {
+        String fileName = file.getFileName().toString();
+        if (fileName.startsWith(prefix)) {
+          files.add(file);
+        }
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to read analytics goal files", ex);
+    }
+    return estimateGoalsFromFiles(gameKey, files);
+  }
+
   public List<InPlayStatusEntry> loadBalancedGameStatuses(String date) {
     String resolvedDate = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
     Path inputFile = followedGamesDir.resolve("balancedGames-" + resolvedDate + ".txt");
@@ -303,6 +376,160 @@ public class GameService {
     return "Scheduled";
   }
 
+  private ParsedAnalyticsFile parseAnalyticsFileName(String fileName, String folderDate) {
+    if (fileName == null || !fileName.endsWith(".txt")) {
+      return null;
+    }
+    String stem = fileName.substring(0, fileName.length() - 4);
+    String marker = "_" + folderDate + "_";
+    int markerIndex = stem.indexOf(marker);
+    if (markerIndex <= 0) {
+      return null;
+    }
+    String gameKey = stem.substring(0, markerIndex);
+    String marketType = stem.substring(markerIndex + marker.length());
+    if (gameKey.isBlank() || marketType.isBlank()) {
+      return null;
+    }
+    return new ParsedAnalyticsFile(gameKey, marketType);
+  }
+
+  private AnalyticsGoalsEstimate estimateGoalsFromFiles(String gameKey, List<Path> files) {
+    if (files == null || files.isEmpty()) {
+      return new AnalyticsGoalsEstimate(gameKey, gameKey.replace('_', ' ').trim(), 0, List.of());
+    }
+
+    List<GoalLineResult> lineResults = new ArrayList<>();
+    for (Path file : files) {
+      String fileName = file.getFileName().toString();
+      int extension = fileName.lastIndexOf('.');
+      String stem = extension > 0 ? fileName.substring(0, extension) : fileName;
+      int suffixStart = stem.lastIndexOf("_OVER_UNDER_");
+      if (suffixStart < 0) {
+        continue;
+      }
+      String marketType = stem.substring(suffixStart + 1);
+      Double threshold = parseOverUnderThreshold(marketType);
+      if (threshold == null) {
+        continue;
+      }
+      boolean closedBeforeEnd = isMarketClosedBeforeEnd(file);
+      boolean overFavouredAtLatestSnapshot = isOverFavouredAtLatestSnapshot(file);
+      lineResults.add(
+          new GoalLineResult(
+              threshold, marketType, closedBeforeEnd, overFavouredAtLatestSnapshot));
+    }
+
+    lineResults.sort(Comparator.comparingDouble(GoalLineResult::threshold));
+    List<String> closedLines = new ArrayList<>();
+    int goals = 0;
+    for (GoalLineResult line : lineResults) {
+      if (line.reached()) {
+        goals++;
+        if (line.closedBeforeEnd()) {
+          closedLines.add(line.marketType() + " (CLOSED)");
+        } else if (line.overFavouredAtLatestSnapshot()) {
+          closedLines.add(line.marketType() + " (OVER favoured)");
+        }
+      }
+    }
+    return new AnalyticsGoalsEstimate(gameKey, gameKey.replace('_', ' ').trim(), goals, closedLines);
+  }
+
+  private Double parseOverUnderThreshold(String marketType) {
+    if (marketType == null || !marketType.startsWith("OVER_UNDER_")) {
+      return null;
+    }
+    String raw = marketType.substring("OVER_UNDER_".length());
+    try {
+      return Integer.parseInt(raw) / 10.0;
+    } catch (NumberFormatException ex) {
+      return null;
+    }
+  }
+
+  private boolean isMarketClosedBeforeEnd(Path file) {
+    try {
+      List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+      for (String line : lines) {
+        if (line == null || line.isBlank() || line.startsWith("timestamp")) {
+          continue;
+        }
+        String[] parts = line.split(",");
+        if (parts.length < 5) {
+          continue;
+        }
+        String status = parts[4].trim().toUpperCase();
+        if (!"CLOSED".equals(status)) {
+          continue;
+        }
+        long minute = parseMinute(parts[1]);
+        if (minute < 120) {
+          return true;
+        }
+      }
+      return false;
+    } catch (IOException ex) {
+      return false;
+    }
+  }
+
+  private boolean isOverFavouredAtLatestSnapshot(Path file) {
+    try {
+      List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+      Quote overQuote = null;
+      Quote underQuote = null;
+      for (String line : lines) {
+        if (line == null || line.isBlank() || line.startsWith("timestamp")) {
+          continue;
+        }
+        String[] parts = line.split(",");
+        if (parts.length < 9) {
+          continue;
+        }
+        String runnerName = parts[6].trim().toUpperCase();
+        double backOdds = parseOdds(parts[7]);
+        if (backOdds <= 0) {
+          continue;
+        }
+        long minute = parseMinute(parts[1]);
+        String timestamp = parts[0].trim();
+        Quote quote = new Quote(minute, timestamp, backOdds);
+        if (runnerName.startsWith("OVER ")) {
+          if (overQuote == null || quote.isAfter(overQuote)) {
+            overQuote = quote;
+          }
+        } else if (runnerName.startsWith("UNDER ")) {
+          if (underQuote == null || quote.isAfter(underQuote)) {
+            underQuote = quote;
+          }
+        }
+      }
+      if (overQuote == null || underQuote == null) {
+        return false;
+      }
+      return overQuote.backOdds() < underQuote.backOdds();
+    } catch (IOException ex) {
+      return false;
+    }
+  }
+
+  private double parseOdds(String value) {
+    try {
+      return Double.parseDouble(value == null ? "0" : value.trim());
+    } catch (Exception ex) {
+      return 0.0;
+    }
+  }
+
+  private long parseMinute(String value) {
+    try {
+      return Long.parseLong(value == null ? "0" : value.trim());
+    } catch (Exception ex) {
+      return 0L;
+    }
+  }
+
   private void applySyntheticOdds(List<Game> games, LocalDate date) {
     for (Game game : games) {
       if (game.getHomeOdds() != null || game.getDrawOdds() != null || game.getAwayOdds() != null) {
@@ -323,5 +550,84 @@ public class GameService {
 
   private double roundOdds(double odds) {
     return Math.round(odds * 100.0) / 100.0;
+  }
+
+  private static final class ParsedAnalyticsFile {
+    private final String gameKey;
+    private final String marketType;
+
+    private ParsedAnalyticsFile(String gameKey, String marketType) {
+      this.gameKey = gameKey;
+      this.marketType = marketType;
+    }
+
+    private String gameKey() {
+      return gameKey;
+    }
+
+    private String marketType() {
+      return marketType;
+    }
+  }
+
+  private static final class GoalLineResult {
+    private final double threshold;
+    private final String marketType;
+    private final boolean closedBeforeEnd;
+    private final boolean overFavouredAtLatestSnapshot;
+
+    private GoalLineResult(
+        double threshold,
+        String marketType,
+        boolean closedBeforeEnd,
+        boolean overFavouredAtLatestSnapshot) {
+      this.threshold = threshold;
+      this.marketType = marketType;
+      this.closedBeforeEnd = closedBeforeEnd;
+      this.overFavouredAtLatestSnapshot = overFavouredAtLatestSnapshot;
+    }
+
+    private double threshold() {
+      return threshold;
+    }
+
+    private String marketType() {
+      return marketType;
+    }
+
+    private boolean closedBeforeEnd() {
+      return closedBeforeEnd;
+    }
+
+    private boolean overFavouredAtLatestSnapshot() {
+      return overFavouredAtLatestSnapshot;
+    }
+
+    private boolean reached() {
+      return closedBeforeEnd || overFavouredAtLatestSnapshot;
+    }
+  }
+
+  private static final class Quote {
+    private final long minute;
+    private final String timestamp;
+    private final double backOdds;
+
+    private Quote(long minute, String timestamp, double backOdds) {
+      this.minute = minute;
+      this.timestamp = timestamp;
+      this.backOdds = backOdds;
+    }
+
+    private double backOdds() {
+      return backOdds;
+    }
+
+    private boolean isAfter(Quote other) {
+      if (minute != other.minute) {
+        return minute > other.minute;
+      }
+      return timestamp.compareTo(other.timestamp) > 0;
+    }
   }
 }

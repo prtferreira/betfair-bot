@@ -1,7 +1,13 @@
 com\betfair\sim\model\EventSelection.class
 com\betfair\sim\service\SelectedGamesOddsCaptureService$1.class
+com\betfair\sim\service\GameService$ParsedAnalyticsFile.class
 com\betfair\sim\service\FollowedGamesPathResolver.class
+com\betfair\sim\service\GameService$Quote.class
+com\betfair\sim\model\AnalyticsGameEntry.class
+com\betfair\sim\model\AnalyticsGoalsEstimate.class
+com\betfair\sim\service\GameService$1.class
 com\betfair\sim\service\SelectedGamesOddsCaptureService.class
 com\betfair\sim\model\EventMarket.class
+com\betfair\sim\service\GameService$GoalLineResult.class
 com\betfair\sim\service\BetfairApiClient$EventIdentity.class
 com\betfair\sim\service\SelectedGamesOddsCaptureService$SelectedGameRef.class

@@ -30,6 +30,7 @@ public class Game {
   private Double htHomeOdds;
   private Double htDrawOdds;
   private Double htAwayOdds;
+  private Double fullTime00Odds;
 
   public Game() {}
 
@@ -297,5 +298,13 @@ public class Game {
 
   public void setHtAwayOdds(Double htAwayOdds) {
     this.htAwayOdds = htAwayOdds;
+  }
+
+  public Double getFullTime00Odds() {
+    return fullTime00Odds;
+  }
+
+  public void setFullTime00Odds(Double fullTime00Odds) {
+    this.fullTime00Odds = fullTime00Odds;
   }
 }
