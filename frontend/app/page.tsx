@@ -6,6 +6,7 @@ export default function Home() {
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
         <Link href="/games">Go to Games</Link>
         <Link href="/games/analytics">Go to Game Analytics</Link>
+        <Link href="/games/live">Go to Live Games</Link>
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.BestStrategyMonitorEntry;
 import com.betfair.sim.model.AnalyticsGameEntry;
 import com.betfair.sim.model.AnalyticsGoalsEstimate;
+import com.betfair.sim.model.LiveGameEntry;
 import com.betfair.sim.model.FollowedGamesRequest;
 import com.betfair.sim.model.SelectedGamesRequest;
 import com.betfair.sim.model.SimulationRequest;
@@ -93,6 +94,11 @@ public class TradeController {
   @GetMapping("/api/betfair/inplay/brasil-serie-a")
   public List<Game> betfairInPlayBrazilSerieA() {
     return gameService.betfairInPlayBrazilSerieA();
+  }
+
+  @GetMapping("/api/betfair/live-games")
+  public List<LiveGameEntry> betfairLiveGames() {
+    return gameService.betfairLiveGames();
   }
 
   @GetMapping("/api/strategies")

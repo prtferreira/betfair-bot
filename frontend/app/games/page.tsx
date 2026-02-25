@@ -48,6 +48,7 @@ const SUBMITTED_GAMES_KEY = "submittedGames";
 const SUBMITTED_GAMES_SCHEMA_KEY = "submittedGamesSchemaVersion";
 const SUBMITTED_GAMES_SCHEMA_VERSION = "2";
 const GAMES_FILTERS_SESSION_KEY = "gamesFiltersSessionV1";
+const GAMES_FILTERS_LOCAL_KEY = "gamesFiltersLocalV1";
 
 const TAB_LABEL: Record<TabKey, string> = {
   today: "Today",
@@ -303,7 +304,9 @@ export default function GamesPage() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(GAMES_FILTERS_SESSION_KEY);
+      const raw =
+        sessionStorage.getItem(GAMES_FILTERS_SESSION_KEY) ||
+        localStorage.getItem(GAMES_FILTERS_LOCAL_KEY);
       if (!raw) {
         return;
       }
@@ -345,13 +348,12 @@ export default function GamesPage() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(
-        GAMES_FILTERS_SESSION_KEY,
-        JSON.stringify({
-          phaseFilter,
-          matchOddsFilter,
-        })
-      );
+      const payload = JSON.stringify({
+        phaseFilter,
+        matchOddsFilter,
+      });
+      sessionStorage.setItem(GAMES_FILTERS_SESSION_KEY, payload);
+      localStorage.setItem(GAMES_FILTERS_LOCAL_KEY, payload);
     } catch {
       // Ignore storage failures.
     }
@@ -759,6 +761,9 @@ export default function GamesPage() {
           </Link>
           <Link href="/games/analytics" className="market-link">
             Go to Game Analytics
+          </Link>
+          <Link href="/games/live" className="market-link">
+            Live Games
           </Link>
         </div>
 

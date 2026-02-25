@@ -129,8 +129,6 @@ public class SimulationBetService {
         betfairApiClient.inferScoresFromCorrectScoreMarkets(marketIds);
     Map<String, BetfairApiClient.InferredScore> inferredScores =
         betfairApiClient.inferScoresFromClosedGoalMarkets(marketIds);
-    List<StatpalLiveClient.LiveMatch> statpalLiveMatches = statpalLiveClient.fetchLiveMatches();
-    LOGGER.debug("[STATPAL_DEBUG] live matches fetched={}", statpalLiveMatches.size());
     boolean updated = false;
     boolean trackingUpdated = false;
     Instant nowInstant = Instant.now();
@@ -182,7 +180,6 @@ public class SimulationBetService {
         trackingUpdated = true;
       }
       bet.setMatchClock(resolveMatchClock(bet, marketStatus, nowInstant));
-      applyStatpalLiveData(bet, statpalLiveMatches);
 
       if (outcome == null) {
         continue;

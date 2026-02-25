@@ -1,0 +1,12 @@
+{
+  "name": "betfair-bot-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Utility scripts for backend fallbacks",
+  "scripts": {
+    "install:browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

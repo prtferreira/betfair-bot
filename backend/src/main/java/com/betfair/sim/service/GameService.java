@@ -4,6 +4,7 @@ import com.betfair.sim.model.Game;
 import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.AnalyticsGameEntry;
 import com.betfair.sim.model.AnalyticsGoalsEstimate;
+import com.betfair.sim.model.LiveGameEntry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+import java.text.Normalizer;
+import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -52,12 +59,15 @@ public class GameService {
   };
 
   private final BetfairApiClient betfairApiClient;
+  private final StatpalLiveClient statpalLiveClient;
   private final Path followedGamesDir;
 
   public GameService(
       BetfairApiClient betfairApiClient,
+      StatpalLiveClient statpalLiveClient,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
+    this.statpalLiveClient = statpalLiveClient;
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
   }
 
@@ -132,6 +142,99 @@ public class GameService {
       return List.of();
     }
     return betfairApiClient.listInPlayBrazilSerieA();
+  }
+
+  public List<LiveGameEntry> betfairLiveGames() {
+    if (!betfairApiClient.isEnabled()) {
+      return List.of();
+    }
+
+    List<Game> candidates = betfairApiClient.listMatchOddsForDate(LocalDate.now(ZoneOffset.UTC));
+    if (candidates.isEmpty()) {
+      return List.of();
+    }
+    List<String> inPlayMarketIds =
+        candidates.stream()
+            .filter(game -> game != null && Boolean.TRUE.equals(game.getInPlay()))
+            .map(Game::getMarketId)
+            .filter(Objects::nonNull)
+            .filter(id -> !id.isBlank())
+            .distinct()
+            .toList();
+    Map<String, BetfairApiClient.MarketOutcome> outcomesByMarket =
+        inPlayMarketIds.isEmpty()
+            ? Map.of()
+            : betfairApiClient.getMarketOutcomes(inPlayMarketIds);
+    Map<String, BetfairApiClient.InferredScore> inferredByMarket =
+        inPlayMarketIds.isEmpty()
+            ? Map.of()
+            : betfairApiClient.inferScoresFromCorrectScoreMarkets(inPlayMarketIds);
+
+    Instant now = Instant.now();
+    Map<String, BetfairApiClient.ExchangeLiveSnapshot> htmlSnapshotCache = new HashMap<>();
+    List<LiveGameEntry> entries = new ArrayList<>();
+    for (Game game : candidates) {
+      if (game == null || !Boolean.TRUE.equals(game.getInPlay())) {
+        continue;
+      }
+      LiveGameEntry entry = new LiveGameEntry();
+      entry.setEventId(valueOrEmpty(game.getId()));
+      entry.setMarketId(valueOrEmpty(game.getMarketId()));
+      entry.setLeague(valueOrEmpty(game.getLeague()));
+      entry.setHomeTeam(valueOrEmpty(game.getHomeTeam()));
+      entry.setAwayTeam(valueOrEmpty(game.getAwayTeam()));
+      entry.setStartTime(valueOrEmpty(game.getStartTime()));
+      entry.setMarketStatus(valueOrEmpty(game.getMarketStatus()));
+      entry.setInPlay(true);
+      entry.setHomeOdds(game.getHomeOdds());
+      entry.setDrawOdds(game.getDrawOdds());
+      entry.setAwayOdds(game.getAwayOdds());
+      entry.setScore("-");
+
+      BetfairApiClient.MarketOutcome outcome = outcomesByMarket.get(entry.getMarketId());
+      if (outcome != null && outcome.getHomeScore() != null && outcome.getAwayScore() != null) {
+        entry.setScore(outcome.getHomeScore() + "-" + outcome.getAwayScore());
+      }
+      if ("-".equals(entry.getScore())) {
+        BetfairApiClient.InferredScore inferred = inferredByMarket.get(entry.getMarketId());
+        if (inferred != null
+            && inferred.getHomeScore() != null
+            && inferred.getAwayScore() != null) {
+          entry.setScore(inferred.getHomeScore() + "-" + inferred.getAwayScore());
+        }
+      }
+
+      if ("-".equals(entry.getScore()) || entry.getMinute() == null || entry.getMinute().isBlank()) {
+        BetfairApiClient.ExchangeLiveSnapshot snapshot =
+            htmlSnapshotCache.computeIfAbsent(
+                entry.getEventId(),
+                key ->
+                    betfairApiClient.fetchExchangeLiveSnapshot(
+                        entry.getEventId(),
+                        entry.getLeague(),
+                        entry.getHomeTeam(),
+                        entry.getAwayTeam()));
+        if (snapshot != null && snapshot.score() != null && !snapshot.score().isBlank()) {
+          entry.setScore(snapshot.score());
+        }
+        if ((entry.getMinute() == null || entry.getMinute().isBlank())
+            && snapshot != null
+            && snapshot.minute() != null
+            && !snapshot.minute().isBlank()) {
+          entry.setMinute(snapshot.minute());
+          entry.setMinuteSource("betfair-dom");
+        }
+      }
+      if (entry.getMinute() == null || entry.getMinute().isBlank()) {
+        String inferred = inferMinuteFromKickoff(game.getStartTime(), now);
+        entry.setMinute(inferred);
+        entry.setMinuteSource("kickoff-estimate");
+      }
+      entries.add(entry);
+    }
+
+    entries.sort(Comparator.comparing(LiveGameEntry::getStartTime, String::compareTo));
+    return entries;
   }
 
   public String betfairFootballEventsRaw() {
@@ -546,6 +649,118 @@ public class GameService {
       game.setDrawOdds(roundOdds(draw));
       game.setAwayOdds(roundOdds(away));
     }
+  }
+
+  private String inferMinuteFromKickoff(String kickoffIso, Instant now) {
+    if (kickoffIso == null || kickoffIso.isBlank()) {
+      return "Live";
+    }
+    try {
+      Instant kickoff = Instant.parse(kickoffIso);
+      long elapsed = Math.max(0L, (now.getEpochSecond() - kickoff.getEpochSecond()) / 60L);
+      if (elapsed <= 0L) {
+        return "1'";
+      }
+      if (elapsed <= 45L) {
+        return elapsed + "'";
+      }
+      if (elapsed <= 60L) {
+        return "HT";
+      }
+      long secondHalf = Math.min(90L, elapsed - 15L);
+      return Math.max(46L, secondHalf) + "'";
+    } catch (Exception ex) {
+      return "Live";
+    }
+  }
+
+  private StatpalLiveClient.LiveMatch findBestStatpalMatch(
+      Game game, List<StatpalLiveClient.LiveMatch> matches) {
+    if (matches == null || matches.isEmpty() || game == null) {
+      return null;
+    }
+    String home = normalizeTeam(game.getHomeTeam());
+    String away = normalizeTeam(game.getAwayTeam());
+    if (home.isBlank() || away.isBlank()) {
+      return null;
+    }
+    StatpalLiveClient.LiveMatch best = null;
+    double bestScore = -1d;
+    for (StatpalLiveClient.LiveMatch match : matches) {
+      String statHome = normalizeTeam(match.getHomeTeam());
+      String statAway = normalizeTeam(match.getAwayTeam());
+      double direct = teamSimilarity(home, statHome) + teamSimilarity(away, statAway);
+      double swapped = teamSimilarity(home, statAway) + teamSimilarity(away, statHome);
+      double score = Math.max(direct, swapped);
+      if (score > bestScore) {
+        bestScore = score;
+        best = match;
+      }
+    }
+    return bestScore >= 1.15d ? best : null;
+  }
+
+  private String normalizeTeam(String input) {
+    if (input == null) {
+      return "";
+    }
+    String noAccents =
+        Normalizer.normalize(input, Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    String normalized = noAccents.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    normalized = normalized.replaceAll("\\b(fc|cf|sc|ac|cd|fk|ud|sv|us|de|the)\\b", " ");
+    return normalized.replaceAll("\\s{2,}", " ").trim();
+  }
+
+  private double teamSimilarity(String left, String right) {
+    if (left == null || right == null || left.isBlank() || right.isBlank()) {
+      return 0d;
+    }
+    if (left.equals(right)) {
+      return 1.5d;
+    }
+    if (left.contains(right) || right.contains(left)) {
+      return 1.2d;
+    }
+    Set<String> leftTokens = tokenize(left);
+    Set<String> rightTokens = tokenize(right);
+    if (leftTokens.isEmpty() || rightTokens.isEmpty()) {
+      return 0d;
+    }
+    Set<String> intersection = new HashSet<>(leftTokens);
+    intersection.retainAll(rightTokens);
+    if (intersection.isEmpty()) {
+      return 0d;
+    }
+    Set<String> union = new HashSet<>(leftTokens);
+    union.addAll(rightTokens);
+    return (double) intersection.size() / (double) union.size();
+  }
+
+  private Set<String> tokenize(String value) {
+    return Arrays.stream(value.split("\\s+"))
+        .map(String::trim)
+        .filter(token -> !token.isBlank())
+        .collect(Collectors.toSet());
+  }
+
+  private String normalizeMinuteText(String minute, String status) {
+    String minuteText = minute == null ? "" : minute.trim();
+    if (!minuteText.isBlank()) {
+      return minuteText.endsWith("'") ? minuteText : minuteText + "'";
+    }
+    String statusText = status == null ? "" : status.trim().toUpperCase();
+    if ("HT".equals(statusText)) {
+      return "HT";
+    }
+    if ("FT".equals(statusText) || "AET".equals(statusText) || "PEN".equals(statusText)) {
+      return "Finished";
+    }
+    return "";
+  }
+
+  private String valueOrEmpty(String value) {
+    return value == null ? "" : value;
   }
 
   private double roundOdds(double odds) {
