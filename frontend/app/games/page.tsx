@@ -47,6 +47,7 @@ interface SubmittedGame {
 const SUBMITTED_GAMES_KEY = "submittedGames";
 const SUBMITTED_GAMES_SCHEMA_KEY = "submittedGamesSchemaVersion";
 const SUBMITTED_GAMES_SCHEMA_VERSION = "2";
+const GAMES_FILTERS_SESSION_KEY = "gamesFiltersSessionV1";
 
 const TAB_LABEL: Record<TabKey, string> = {
   today: "Today",
@@ -299,6 +300,62 @@ export default function GamesPage() {
 
     void init();
   }, [datesByTab]);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(GAMES_FILTERS_SESSION_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as {
+        phaseFilter?: PhaseFilter;
+        matchOddsFilter?: Partial<MatchOddsFilter>;
+      };
+      if (
+        parsed.phaseFilter === "all" ||
+        parsed.phaseFilter === "inPlay" ||
+        parsed.phaseFilter === "scheduled"
+      ) {
+        setPhaseFilter(parsed.phaseFilter);
+      }
+      if (parsed.matchOddsFilter) {
+        setMatchOddsFilter((prev) => ({
+          home: {
+            min: clampOdds(parsed.matchOddsFilter?.home?.min ?? prev.home.min),
+            max: clampOdds(parsed.matchOddsFilter?.home?.max ?? prev.home.max),
+          },
+          draw: {
+            min: clampOdds(parsed.matchOddsFilter?.draw?.min ?? prev.draw.min),
+            max: clampOdds(parsed.matchOddsFilter?.draw?.max ?? prev.draw.max),
+          },
+          away: {
+            min: clampOdds(parsed.matchOddsFilter?.away?.min ?? prev.away.min),
+            max: clampOdds(parsed.matchOddsFilter?.away?.max ?? prev.away.max),
+          },
+          fullTime00: {
+            min: clampOdds(parsed.matchOddsFilter?.fullTime00?.min ?? prev.fullTime00.min),
+            max: clampOdds(parsed.matchOddsFilter?.fullTime00?.max ?? prev.fullTime00.max),
+          },
+        }));
+      }
+    } catch {
+      // Ignore malformed persisted filters.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        GAMES_FILTERS_SESSION_KEY,
+        JSON.stringify({
+          phaseFilter,
+          matchOddsFilter,
+        })
+      );
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [phaseFilter, matchOddsFilter]);
 
   const connectBetfair = async (): Promise<void> => {
     setIsConnecting(true);
