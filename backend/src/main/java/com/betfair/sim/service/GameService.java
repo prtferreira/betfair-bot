@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.text.Normalizer;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -61,13 +62,17 @@ public class GameService {
   private final BetfairApiClient betfairApiClient;
   private final StatpalLiveClient statpalLiveClient;
   private final Path followedGamesDir;
+  private final int domScrapeMaxPerRequest;
+  private final Map<String, LiveTracker> liveTrackers = new ConcurrentHashMap<>();
 
   public GameService(
       BetfairApiClient betfairApiClient,
       StatpalLiveClient statpalLiveClient,
+      @Value("${betfair.dom-score.max-scrapes-per-request:20}") int domScrapeMaxPerRequest,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
     this.statpalLiveClient = statpalLiveClient;
+    this.domScrapeMaxPerRequest = Math.max(1, domScrapeMaxPerRequest);
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
   }
 
@@ -149,32 +154,65 @@ public class GameService {
       return List.of();
     }
 
-    List<Game> candidates = betfairApiClient.listMatchOddsForDate(LocalDate.now(ZoneOffset.UTC));
+    Map<String, Game> candidatesByMarketId = new LinkedHashMap<>();
+    for (Game game : betfairApiClient.listInPlayFootballMatchOdds()) {
+      if (game == null) {
+        continue;
+      }
+      String marketId = valueOrEmpty(game.getMarketId());
+      if (!marketId.isBlank()) {
+        candidatesByMarketId.put(marketId, game);
+      }
+    }
+    List<String> trackedMarketIds =
+        liveTrackers.keySet().stream()
+            .map(key -> key.split("\\|", 2)[0])
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(id -> !id.isBlank())
+            .distinct()
+            .toList();
+    if (!trackedMarketIds.isEmpty()) {
+      for (Game game : betfairApiClient.listMatchOddsByMarketIds(trackedMarketIds)) {
+        if (game == null) {
+          continue;
+        }
+        String marketId = valueOrEmpty(game.getMarketId());
+        if (!marketId.isBlank()) {
+          candidatesByMarketId.put(marketId, game);
+        }
+      }
+    }
+    List<Game> candidates = new ArrayList<>(candidatesByMarketId.values());
     if (candidates.isEmpty()) {
       return List.of();
     }
-    List<String> inPlayMarketIds =
+    List<String> candidateMarketIds =
         candidates.stream()
-            .filter(game -> game != null && Boolean.TRUE.equals(game.getInPlay()))
             .map(Game::getMarketId)
             .filter(Objects::nonNull)
             .filter(id -> !id.isBlank())
             .distinct()
             .toList();
     Map<String, BetfairApiClient.MarketOutcome> outcomesByMarket =
-        inPlayMarketIds.isEmpty()
+        candidateMarketIds.isEmpty()
             ? Map.of()
-            : betfairApiClient.getMarketOutcomes(inPlayMarketIds);
+            : betfairApiClient.getMarketOutcomes(candidateMarketIds);
     Map<String, BetfairApiClient.InferredScore> inferredByMarket =
-        inPlayMarketIds.isEmpty()
+        candidateMarketIds.isEmpty()
             ? Map.of()
-            : betfairApiClient.inferScoresFromCorrectScoreMarkets(inPlayMarketIds);
+            : betfairApiClient.inferScoresFromCorrectScoreMarkets(candidateMarketIds);
 
     Instant now = Instant.now();
-    Map<String, BetfairApiClient.ExchangeLiveSnapshot> htmlSnapshotCache = new HashMap<>();
     List<LiveGameEntry> entries = new ArrayList<>();
     for (Game game : candidates) {
-      if (game == null || !Boolean.TRUE.equals(game.getInPlay())) {
+      if (game == null) {
+        continue;
+      }
+      String trackerKey = (valueOrEmpty(game.getMarketId()) + "|" + valueOrEmpty(game.getId())).trim();
+      boolean inPlay = Boolean.TRUE.equals(game.getInPlay());
+      boolean trackedBefore = liveTrackers.containsKey(trackerKey);
+      if (!inPlay && !trackedBefore) {
         continue;
       }
       LiveGameEntry entry = new LiveGameEntry();
@@ -185,11 +223,13 @@ public class GameService {
       entry.setAwayTeam(valueOrEmpty(game.getAwayTeam()));
       entry.setStartTime(valueOrEmpty(game.getStartTime()));
       entry.setMarketStatus(valueOrEmpty(game.getMarketStatus()));
-      entry.setInPlay(true);
+      entry.setInPlay(inPlay);
       entry.setHomeOdds(game.getHomeOdds());
       entry.setDrawOdds(game.getDrawOdds());
       entry.setAwayOdds(game.getAwayOdds());
       entry.setScore("-");
+      entry.setHighlight("");
+      entry.setZeroZeroAfterHt(false);
 
       BetfairApiClient.MarketOutcome outcome = outcomesByMarket.get(entry.getMarketId());
       if (outcome != null && outcome.getHomeScore() != null && outcome.getAwayScore() != null) {
@@ -204,33 +244,63 @@ public class GameService {
         }
       }
 
-      if ("-".equals(entry.getScore()) || entry.getMinute() == null || entry.getMinute().isBlank()) {
-        BetfairApiClient.ExchangeLiveSnapshot snapshot =
-            htmlSnapshotCache.computeIfAbsent(
-                entry.getEventId(),
-                key ->
-                    betfairApiClient.fetchExchangeLiveSnapshot(
-                        entry.getEventId(),
-                        entry.getLeague(),
-                        entry.getHomeTeam(),
-                        entry.getAwayTeam()));
-        if (snapshot != null && snapshot.score() != null && !snapshot.score().isBlank()) {
-          entry.setScore(snapshot.score());
-        }
-        if ((entry.getMinute() == null || entry.getMinute().isBlank())
-            && snapshot != null
-            && snapshot.minute() != null
-            && !snapshot.minute().isBlank()) {
-          entry.setMinute(snapshot.minute());
-          entry.setMinuteSource("betfair-dom");
-        }
-      }
       if (entry.getMinute() == null || entry.getMinute().isBlank()) {
         String inferred = inferMinuteFromKickoff(game.getStartTime(), now);
         entry.setMinute(inferred);
         entry.setMinuteSource("kickoff-estimate");
       }
+      applyLiveClassification(entry);
       entries.add(entry);
+    }
+
+    List<LiveGameEntry> missingScoreCandidates =
+        entries.stream().filter(entry -> "-".equals(entry.getScore())).toList();
+    List<LiveGameEntry> minuteOnlyCandidates =
+        entries.stream()
+            .filter(
+                entry ->
+                    !"-".equals(entry.getScore())
+                        && "kickoff-estimate".equals(entry.getMinuteSource()))
+            .toList();
+    List<LiveGameEntry> domCandidates = new ArrayList<>();
+    for (LiveGameEntry entry : missingScoreCandidates) {
+      if (domCandidates.size() >= domScrapeMaxPerRequest) {
+        break;
+      }
+      domCandidates.add(entry);
+    }
+    for (LiveGameEntry entry : minuteOnlyCandidates) {
+      if (domCandidates.size() >= domScrapeMaxPerRequest) {
+        break;
+      }
+      domCandidates.add(entry);
+    }
+    Map<String, BetfairApiClient.ExchangeLiveSnapshot> htmlSnapshotCache = new ConcurrentHashMap<>();
+    domCandidates.parallelStream()
+        .forEach(
+            entry ->
+                htmlSnapshotCache.computeIfAbsent(
+                    entry.getEventId(),
+                    key ->
+                        betfairApiClient.fetchExchangeLiveSnapshot(
+                            entry.getEventId(),
+                            entry.getLeague(),
+                            entry.getHomeTeam(),
+                            entry.getAwayTeam())));
+
+    for (LiveGameEntry entry : domCandidates) {
+      BetfairApiClient.ExchangeLiveSnapshot snapshot = htmlSnapshotCache.get(entry.getEventId());
+      if (snapshot != null && snapshot.score() != null && !snapshot.score().isBlank()) {
+        entry.setScore(snapshot.score());
+      }
+      if ("kickoff-estimate".equals(entry.getMinuteSource())
+          && snapshot != null
+          && snapshot.minute() != null
+          && !snapshot.minute().isBlank()) {
+        entry.setMinute(snapshot.minute());
+        entry.setMinuteSource("betfair-dom");
+      }
+      applyLiveClassification(entry);
     }
 
     entries.sort(Comparator.comparing(LiveGameEntry::getStartTime, String::compareTo));
@@ -763,8 +833,188 @@ public class GameService {
     return value == null ? "" : value;
   }
 
+  private void applyLiveClassification(LiveGameEntry entry) {
+    if (entry == null) {
+      return;
+    }
+    String key = (valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId())).trim();
+    if (key.isBlank()) {
+      return;
+    }
+    LiveTracker tracker = liveTrackers.computeIfAbsent(key, ignored -> new LiveTracker());
+    int[] score = parseScore(entry.getScore());
+    int minute = parseLiveMinute(entry.getMinute());
+    boolean finished = isFinished(entry);
+    boolean knownScore = score[0] >= 0 && score[1] >= 0;
+    int totalGoals = knownScore ? score[0] + score[1] : -1;
+
+    if (tracker.firstGoalMinute == null && knownScore && totalGoals > 0) {
+      tracker.firstGoalMinute = minute > 0 ? minute : 1;
+    }
+    if (tracker.firstGoalMinute != null && tracker.firstGoalMinute <= 60) {
+      tracker.highlight = "orange";
+    }
+
+    if (!"orange".equals(tracker.highlight)) {
+      if (minute >= 60 && !tracker.sixtySnapshotSaved) {
+        tracker.sixtySnapshotSaved = true;
+        saveSixtyMinuteOdds(entry, minute);
+      }
+      if (minute >= 60 && knownScore && totalGoals == 0) {
+        tracker.zeroZeroAt60 = true;
+        tracker.highlight = "yellow";
+      }
+      if (tracker.zeroZeroAt60 && knownScore && totalGoals > 0) {
+        tracker.highlight = "green";
+      }
+    }
+
+    if (finished && knownScore && totalGoals == 0) {
+      tracker.highlight = "red";
+      if (!tracker.finishedZeroZeroSaved) {
+        tracker.finishedZeroZeroSaved = true;
+        saveFinishedZeroZero(entry);
+      }
+    }
+
+    entry.setHighlight(valueOrEmpty(tracker.highlight));
+    entry.setZeroZeroAfterHt(!finished && knownScore && totalGoals == 0 && minute >= 46);
+  }
+
+  private int[] parseScore(String score) {
+    if (score == null) {
+      return new int[] {-1, -1};
+    }
+    String text = score.trim();
+    if (!text.matches("\\d+\\s*-\\s*\\d+")) {
+      return new int[] {-1, -1};
+    }
+    String[] parts = text.split("-");
+    try {
+      return new int[] {Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
+    } catch (Exception ex) {
+      return new int[] {-1, -1};
+    }
+  }
+
+  private int parseLiveMinute(String minuteText) {
+    if (minuteText == null || minuteText.isBlank()) {
+      return 0;
+    }
+    String text = minuteText.trim().toUpperCase();
+    if ("HT".equals(text)) {
+      return 45;
+    }
+    if ("FT".equals(text) || "FINISHED".equals(text)) {
+      return 90;
+    }
+    String normalized = text.replace("’", "'").replaceAll("[^0-9+']", "");
+    if (normalized.isBlank()) {
+      return 0;
+    }
+    String base = normalized;
+    if (base.endsWith("'")) {
+      base = base.substring(0, base.length() - 1);
+    }
+    try {
+      if (base.contains("+")) {
+        String[] parts = base.split("\\+");
+        return Integer.parseInt(parts[0]) + Integer.parseInt(parts[1]);
+      }
+      return Integer.parseInt(base);
+    } catch (Exception ex) {
+      return 0;
+    }
+  }
+
+  private boolean isFinished(LiveGameEntry entry) {
+    String marketStatus = valueOrEmpty(entry.getMarketStatus()).toUpperCase();
+    if ("CLOSED".equals(marketStatus)) {
+      return true;
+    }
+    String minute = valueOrEmpty(entry.getMinute()).toUpperCase();
+    return "FT".equals(minute) || "FINISHED".equals(minute);
+  }
+
+  private void saveSixtyMinuteOdds(LiveGameEntry entry, int minute) {
+    LocalDate day = resolveEntryDay(entry);
+    Path file = followedGamesDir.resolve("live-odds-at-60-" + day + ".txt");
+    String line =
+        day
+            + " | "
+            + valueOrEmpty(entry.getHomeTeam())
+            + " vs "
+            + valueOrEmpty(entry.getAwayTeam())
+            + " | minute="
+            + minute
+            + " | "
+            + valueOrEmpty(entry.getHomeTeam())
+            + "="
+            + valueOrDash(entry.getHomeOdds())
+            + ", Draw="
+            + valueOrDash(entry.getDrawOdds())
+            + ", "
+            + valueOrEmpty(entry.getAwayTeam())
+            + "="
+            + valueOrDash(entry.getAwayOdds());
+    appendLine(file, line);
+  }
+
+  private void saveFinishedZeroZero(LiveGameEntry entry) {
+    LocalDate day = resolveEntryDay(entry);
+    Path file = followedGamesDir.resolve("live-finished-0-0-" + day + ".txt");
+    String line =
+        day
+            + " | "
+            + valueOrEmpty(entry.getHomeTeam())
+            + " vs "
+            + valueOrEmpty(entry.getAwayTeam())
+            + " | score=0-0";
+    appendLine(file, line);
+  }
+
+  private LocalDate resolveEntryDay(LiveGameEntry entry) {
+    try {
+      String start = valueOrEmpty(entry.getStartTime());
+      if (!start.isBlank()) {
+        return Instant.parse(start).atZone(ZoneOffset.UTC).toLocalDate();
+      }
+    } catch (Exception ignored) {
+      // ignore parsing issues
+    }
+    return LocalDate.now(ZoneOffset.UTC);
+  }
+
+  private String valueOrDash(Double value) {
+    return value == null ? "-" : String.valueOf(value);
+  }
+
+  private synchronized void appendLine(Path file, String line) {
+    try {
+      Files.createDirectories(file.getParent());
+      List<String> existing =
+          Files.exists(file) ? Files.readAllLines(file, StandardCharsets.UTF_8) : List.of();
+      if (existing.contains(line)) {
+        return;
+      }
+      List<String> output = new ArrayList<>(existing);
+      output.add(line);
+      Files.write(file, output, StandardCharsets.UTF_8);
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to write live game tracking file", ex);
+    }
+  }
+
   private double roundOdds(double odds) {
     return Math.round(odds * 100.0) / 100.0;
+  }
+
+  private static final class LiveTracker {
+    private Integer firstGoalMinute;
+    private boolean zeroZeroAt60;
+    private boolean sixtySnapshotSaved;
+    private boolean finishedZeroZeroSaved;
+    private String highlight = "";
   }
 
   private static final class ParsedAnalyticsFile {

@@ -19,7 +19,11 @@ interface LiveGameEntry {
   score?: string;
   minute?: string;
   minuteSource?: string;
+  highlight?: string;
+  zeroZeroAfterHt?: boolean;
 }
+
+type LiveTab = "all" | "zero-zero-ht";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8089";
@@ -37,6 +41,7 @@ export default function LiveGamesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [games, setGames] = useState<LiveGameEntry[]>([]);
+  const [activeTab, setActiveTab] = useState<LiveTab>("all");
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [goalAlerts, setGoalAlerts] = useState<Record<string, { minute: string }>>(
     {}
@@ -156,6 +161,13 @@ export default function LiveGamesPage() {
     [games]
   );
 
+  const visibleGames = useMemo(() => {
+    if (activeTab === "zero-zero-ht") {
+      return sorted.filter((game) => game.zeroZeroAfterHt);
+    }
+    return sorted;
+  }, [activeTab, sorted]);
+
   return (
     <main className="live-page">
       <section className="live-panel">
@@ -176,19 +188,44 @@ export default function LiveGamesPage() {
           </span>
         </div>
 
+        <div className="live-tabs" role="tablist" aria-label="Live game tabs">
+          <button
+            type="button"
+            className={`live-tab ${activeTab === "all" ? "live-tab--active" : ""}`}
+            onClick={() => setActiveTab("all")}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`live-tab ${
+              activeTab === "zero-zero-ht" ? "live-tab--active" : ""
+            }`}
+            onClick={() => setActiveTab("zero-zero-ht")}
+          >
+            0-0 after HT
+          </button>
+        </div>
+
         {loading ? <p className="live-hint">Loading live games...</p> : null}
         {error ? <p className="live-hint live-hint--error">{error}</p> : null}
-        {!loading && !error && sorted.length === 0 ? (
+        {!loading && !error && visibleGames.length === 0 ? (
           <p className="live-hint">No in-play games right now.</p>
         ) : null}
 
-        {!loading && !error && sorted.length > 0 ? (
+        {!loading && !error && visibleGames.length > 0 ? (
           <ul className="live-list">
-            {sorted.map((game) => {
+            {visibleGames.map((game) => {
               const key = gameKey(game);
               const goalAlert = goalAlerts[key];
+              const highlightClass = game.highlight
+                ? `live-row--${game.highlight}`
+                : "";
               return (
-              <li key={`${game.marketId}:${game.eventId}`} className="live-row">
+              <li
+                key={`${game.marketId}:${game.eventId}`}
+                className={`live-row ${highlightClass}`.trim()}
+              >
                 <p className="live-name">{eventName(game)}</p>
                 {goalAlert ? (
                   <p className="live-goal-alert">

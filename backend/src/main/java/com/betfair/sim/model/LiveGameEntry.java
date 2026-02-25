@@ -15,6 +15,8 @@ public class LiveGameEntry {
   private String score;
   private String minute;
   private String minuteSource;
+  private String highlight;
+  private boolean zeroZeroAfterHt;
 
   public LiveGameEntry() {}
 
@@ -128,5 +130,21 @@ public class LiveGameEntry {
 
   public void setMinuteSource(String minuteSource) {
     this.minuteSource = minuteSource;
+  }
+
+  public String getHighlight() {
+    return highlight;
+  }
+
+  public void setHighlight(String highlight) {
+    this.highlight = highlight;
+  }
+
+  public boolean isZeroZeroAfterHt() {
+    return zeroZeroAfterHt;
+  }
+
+  public void setZeroZeroAfterHt(boolean zeroZeroAfterHt) {
+    this.zeroZeroAfterHt = zeroZeroAfterHt;
   }
 }

@@ -70,7 +70,7 @@ public class BetfairApiClient {
       @Value("${betfair.dom-score.playwright.enabled:true}") boolean domScorePlaywrightEnabled,
       @Value("${betfair.dom-score.playwright.node-command:node}") String domScorePlaywrightNodeCommand,
       @Value("${betfair.dom-score.playwright.script-path:../tools/betfair-score.js}") String domScorePlaywrightScriptPath,
-      @Value("${betfair.dom-score.playwright.timeout-ms:25000}") int domScorePlaywrightTimeoutMs) {
+      @Value("${betfair.dom-score.playwright.timeout-ms:18000}") int domScorePlaywrightTimeoutMs) {
     this.restTemplate = restTemplateBuilder.build();
     this.objectMapper = objectMapper;
     this.sessionStore = sessionStore;
@@ -315,6 +315,67 @@ public class BetfairApiClient {
     }
   }
 
+  public List<Game> listInPlayFootballMatchOdds() {
+    if (!isEnabled()) {
+      LOGGER.warn("Betfair API disabled. appKeyPresent={}, sessionTokenPresent={}", hasAppKey(), hasSessionToken());
+      return List.of();
+    }
+
+    try {
+      List<MatchOddsMarket> markets = listInPlayFootballMarkets();
+      if (markets.isEmpty()) {
+        return List.of();
+      }
+
+      Map<String, MarketBookOdds> oddsByMarket =
+          fetchMarketBookOdds(
+              markets.stream().map(m -> m.marketId).toList(),
+              LocalDate.now(ZoneOffset.UTC));
+
+      List<Game> games = new ArrayList<>();
+      for (MatchOddsMarket market : markets) {
+        MarketBookOdds odds = oddsByMarket.get(market.marketId);
+        if (odds == null) {
+          continue;
+        }
+        Double homeOdds = odds.backOddsBySelection.get(market.homeSelectionId);
+        Double drawOdds =
+            market.drawSelectionId < 0 ? null : odds.backOddsBySelection.get(market.drawSelectionId);
+        Double awayOdds = odds.backOddsBySelection.get(market.awaySelectionId);
+        Double homeLayOdds = odds.layOddsBySelection.get(market.homeSelectionId);
+        Double drawLayOdds =
+            market.drawSelectionId < 0 ? null : odds.layOddsBySelection.get(market.drawSelectionId);
+        Double awayLayOdds = odds.layOddsBySelection.get(market.awaySelectionId);
+        Game game =
+            new Game(
+                market.eventId,
+                "Football",
+                market.league,
+                market.homeTeam,
+                market.awayTeam,
+                market.startTimeText,
+                market.marketId,
+                homeOdds,
+                drawOdds,
+                awayOdds);
+        game.setHomeSelectionId(market.homeSelectionId);
+        game.setDrawSelectionId(market.drawSelectionId);
+        game.setAwaySelectionId(market.awaySelectionId);
+        game.setMarketStatus(odds.status);
+        game.setInPlay(odds.inPlay);
+        game.setHomeLayOdds(homeLayOdds);
+        game.setDrawLayOdds(drawLayOdds);
+        game.setAwayLayOdds(awayLayOdds);
+        games.add(game);
+      }
+      games.sort(Comparator.comparing(Game::getStartTime, Comparator.nullsLast(String::compareTo)));
+      return games;
+    } catch (Exception ex) {
+      LOGGER.warn("Betfair listInPlayFootballMatchOdds failed", ex);
+      return List.of();
+    }
+  }
+
   public List<Game> listMatchOddsByMarketIds(List<String> marketIds) {
     if (!isEnabled()) {
       return List.of();
@@ -479,35 +540,30 @@ public class BetfairApiClient {
     if (competitionSlug.isBlank()) {
       competitionSlug = "football";
     }
-    List<String> candidateUrls =
+    String primaryUrl =
+        "https://www.betfair.com/exchange/plus/en/football/"
+            + competitionSlug
+            + "/"
+            + eventSlug
+            + "-betting-"
+            + eventId;
+    List<String> fallbackUrls =
         List.of(
-            "https://www.betfair.com/exchange/plus/en/football/"
-                + competitionSlug
-                + "/"
-                + eventSlug
-                + "-betting-"
-                + eventId,
+            primaryUrl,
             "https://www.betfair.com/exchange/plus/en/football/" + eventSlug + "-betting-" + eventId,
-            "https://www.betfair.com/exchange/plus/en/football/event/" + eventId,
-            "https://www.betfair.com/exchange/plus/en/football/betting-" + eventId);
+            "https://www.betfair.com/exchange/plus/en/football/event/" + eventId);
 
-    for (String url : candidateUrls) {
-      String score = parseScoreFromStaticHtml(url, eventId);
-      if (!score.isBlank()) {
-        return new ExchangeLiveSnapshot(score, "");
-      }
-    }
-
-    int playwrightAttempts = 0;
-    for (String url : candidateUrls) {
-      if (playwrightAttempts >= 2) {
-        break;
-      }
+    for (String url : fallbackUrls) {
       ExchangeLiveSnapshot snapshot = parseSnapshotWithPlaywright(url, eventId);
-      playwrightAttempts++;
       if (snapshot != null && (!snapshot.score().isBlank() || !snapshot.minute().isBlank())) {
         return snapshot;
       }
+    }
+
+    // Final cheap fallback if DOM scraping fails: static HTML score span scan.
+    String score = parseScoreFromStaticHtml(primaryUrl, eventId);
+    if (!score.isBlank()) {
+      return new ExchangeLiveSnapshot(score, "");
     }
     return new ExchangeLiveSnapshot("", "");
   }

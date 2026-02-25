@@ -42,6 +42,28 @@
   margin-bottom: 10px;
 }
 
+.live-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.live-tab {
+  border: 1px solid #b9c7d2;
+  background: #ffffff;
+  color: #33404b;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.live-tab--active {
+  border-color: #1f5a31;
+  background: #e8f8ee;
+  color: #1f5a31;
+}
+
 .live-refresh {
   border: 1px solid #8db89a;
   background: #e8f8ee;
@@ -78,6 +100,22 @@
   border-radius: 10px;
   padding: 10px 12px;
   background: #ffffff;
+}
+
+.live-row--orange {
+  background: #ffd4a6;
+}
+
+.live-row--yellow {
+  background: #fff3a6;
+}
+
+.live-row--green {
+  background: #cbf3cb;
+}
+
+.live-row--red {
+  background: #ffc3c3;
 }
 
 .live-name {
