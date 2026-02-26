@@ -646,35 +646,6 @@ export default function GamesPage() {
           ).map(([runnerKey, label]) => (
             <div key={runnerKey} className="filter-row">
               <span className="filter-label">{label}</span>
-              <div className="filter-boxes">
-                <label className="filter-input-wrap">
-                  <span className="filter-input-prefix">@</span>
-                  <input
-                    type="number"
-                    min={ODDS_MIN}
-                    max={ODDS_MAX}
-                    step={ODDS_STEP}
-                    value={matchOddsFilter[runnerKey].min}
-                    onChange={(event) =>
-                      updateOddsInput(runnerKey, "min", event.currentTarget.value)
-                    }
-                  />
-                </label>
-                <span className="filter-to">to</span>
-                <label className="filter-input-wrap">
-                  <span className="filter-input-prefix">@</span>
-                  <input
-                    type="number"
-                    min={ODDS_MIN}
-                    max={ODDS_MAX}
-                    step={ODDS_STEP}
-                    value={matchOddsFilter[runnerKey].max}
-                    onChange={(event) =>
-                      updateOddsInput(runnerKey, "max", event.currentTarget.value)
-                    }
-                  />
-                </label>
-              </div>
               <div className="filter-sliders filter-sliders--dual">
                 {(() => {
                   const minSlider = oddsToSlider(matchOddsFilter[runnerKey].min);
@@ -728,6 +699,35 @@ export default function GamesPage() {
                     </>
                   );
                 })()}
+              </div>
+              <div className="filter-boxes">
+                <label className="filter-input-wrap">
+                  <span className="filter-input-prefix">@</span>
+                  <input
+                    type="number"
+                    min={ODDS_MIN}
+                    max={ODDS_MAX}
+                    step={ODDS_STEP}
+                    value={matchOddsFilter[runnerKey].min}
+                    onChange={(event) =>
+                      updateOddsInput(runnerKey, "min", event.currentTarget.value)
+                    }
+                  />
+                </label>
+                <span className="filter-to">to</span>
+                <label className="filter-input-wrap">
+                  <span className="filter-input-prefix">@</span>
+                  <input
+                    type="number"
+                    min={ODDS_MIN}
+                    max={ODDS_MAX}
+                    step={ODDS_STEP}
+                    value={matchOddsFilter[runnerKey].max}
+                    onChange={(event) =>
+                      updateOddsInput(runnerKey, "max", event.currentTarget.value)
+                    }
+                  />
+                </label>
               </div>
             </div>
           ))}

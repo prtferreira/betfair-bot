@@ -135,9 +135,9 @@
 
 .filter-row {
   display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 8px 10px;
-  align-items: start;
+  grid-template-columns: 64px minmax(240px, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
   margin-bottom: 6px;
 }
 
@@ -186,7 +186,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
 }
 
 .filter-to {
@@ -224,12 +223,11 @@
 .filter-sliders {
   position: relative;
   height: 38px;
+  min-width: 320px;
 }
 
 .filter-sliders--dual {
-  grid-column: 1 / -1;
   width: 100%;
-  margin-top: 2px;
 }
 
 .dual-track {
@@ -515,6 +513,10 @@
   .filter-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .filter-sliders {
+    min-width: 0;
   }
 
   .filter-boxes {

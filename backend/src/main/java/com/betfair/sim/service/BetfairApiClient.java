@@ -560,40 +560,7 @@ public class BetfairApiClient {
       }
     }
 
-    // Final cheap fallback if DOM scraping fails: static HTML score span scan.
-    String score = parseScoreFromStaticHtml(primaryUrl, eventId);
-    if (!score.isBlank()) {
-      return new ExchangeLiveSnapshot(score, "");
-    }
     return new ExchangeLiveSnapshot("", "");
-  }
-
-  private String parseScoreFromStaticHtml(String url, String eventId) {
-    try {
-      HttpHeaders headers = new HttpHeaders();
-      headers.set("User-Agent", "Mozilla/5.0");
-      HttpEntity<Void> request = new HttpEntity<>(headers);
-      String html =
-          restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, request, String.class).getBody();
-      if (html == null || html.isBlank()) {
-        return "";
-      }
-      Matcher matcher = SCORE_SPAN_PATTERN.matcher(html);
-      while (matcher.find()) {
-        String text = matcher.group(1);
-        if (text == null) {
-          continue;
-        }
-        String candidate = text.trim().replaceAll("\\s+", "");
-        if (candidate.matches("\\d+-\\d+")) {
-          return candidate;
-        }
-      }
-      return "";
-    } catch (Exception ex) {
-      LOGGER.debug("Betfair static HTML score scrape failed for eventId={} url={}", eventId, url);
-      return "";
-    }
   }
 
   private ExchangeLiveSnapshot parseSnapshotWithPlaywright(String url, String eventId) {

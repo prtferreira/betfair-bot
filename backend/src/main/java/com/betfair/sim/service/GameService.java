@@ -155,7 +155,8 @@ public class GameService {
     }
 
     Map<String, Game> candidatesByMarketId = new LinkedHashMap<>();
-    for (Game game : betfairApiClient.listInPlayFootballMatchOdds()) {
+    List<Game> primaryInPlay = betfairApiClient.listInPlayFootballMatchOdds();
+    for (Game game : primaryInPlay) {
       if (game == null) {
         continue;
       }
@@ -164,17 +165,13 @@ public class GameService {
         candidatesByMarketId.put(marketId, game);
       }
     }
-    List<String> trackedMarketIds =
-        liveTrackers.keySet().stream()
-            .map(key -> key.split("\\|", 2)[0])
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(id -> !id.isBlank())
-            .distinct()
-            .toList();
-    if (!trackedMarketIds.isEmpty()) {
-      for (Game game : betfairApiClient.listMatchOddsByMarketIds(trackedMarketIds)) {
+
+    if (candidatesByMarketId.isEmpty()) {
+      for (Game game : betfairApiClient.listMatchOddsForDate(LocalDate.now(ZoneOffset.UTC))) {
         if (game == null) {
+          continue;
+        }
+        if (!Boolean.TRUE.equals(game.getInPlay())) {
           continue;
         }
         String marketId = valueOrEmpty(game.getMarketId());
@@ -253,8 +250,26 @@ public class GameService {
       entries.add(entry);
     }
 
+    List<LiveGameEntry> highPriorityDomCandidates =
+        entries.stream()
+            .filter(entry -> "kickoff-estimate".equals(entry.getMinuteSource()))
+            .filter(
+                entry -> {
+                  int minute = parseLiveMinute(entry.getMinute());
+                  String score = valueOrEmpty(entry.getScore()).trim();
+                  return minute >= 46 && ("0-0".equals(score) || "0-0?".equals(score) || "-".equals(score));
+                })
+            .sorted(
+                Comparator.comparingInt((LiveGameEntry entry) -> parseLiveMinute(entry.getMinute()))
+                    .reversed())
+            .toList();
     List<LiveGameEntry> missingScoreCandidates =
-        entries.stream().filter(entry -> "-".equals(entry.getScore())).toList();
+        entries.stream()
+            .filter(entry -> "-".equals(entry.getScore()))
+            .sorted(
+                Comparator.comparingInt((LiveGameEntry entry) -> parseLiveMinute(entry.getMinute()))
+                    .reversed())
+            .toList();
     List<LiveGameEntry> minuteOnlyCandidates =
         entries.stream()
             .filter(
@@ -263,17 +278,33 @@ public class GameService {
                         && "kickoff-estimate".equals(entry.getMinuteSource()))
             .toList();
     List<LiveGameEntry> domCandidates = new ArrayList<>();
+    Set<String> addedDomKeys = new LinkedHashSet<>();
+    for (LiveGameEntry entry : highPriorityDomCandidates) {
+      if (domCandidates.size() >= domScrapeMaxPerRequest) {
+        break;
+      }
+      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
+      if (addedDomKeys.add(key)) {
+        domCandidates.add(entry);
+      }
+    }
     for (LiveGameEntry entry : missingScoreCandidates) {
       if (domCandidates.size() >= domScrapeMaxPerRequest) {
         break;
       }
-      domCandidates.add(entry);
+      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
+      if (addedDomKeys.add(key)) {
+        domCandidates.add(entry);
+      }
     }
     for (LiveGameEntry entry : minuteOnlyCandidates) {
       if (domCandidates.size() >= domScrapeMaxPerRequest) {
         break;
       }
-      domCandidates.add(entry);
+      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
+      if (addedDomKeys.add(key)) {
+        domCandidates.add(entry);
+      }
     }
     Map<String, BetfairApiClient.ExchangeLiveSnapshot> htmlSnapshotCache = new ConcurrentHashMap<>();
     domCandidates.parallelStream()
@@ -842,6 +873,12 @@ public class GameService {
       return;
     }
     LiveTracker tracker = liveTrackers.computeIfAbsent(key, ignored -> new LiveTracker());
+    String scoreText = valueOrEmpty(entry.getScore()).trim();
+    if (scoreText.matches("\\d+\\s*-\\s*\\d+")) {
+      tracker.lastKnownScore = scoreText.replaceAll("\\s+", "");
+    } else if (tracker.lastKnownScore != null && !tracker.lastKnownScore.isBlank()) {
+      entry.setScore(tracker.lastKnownScore);
+    }
     int[] score = parseScore(entry.getScore());
     int minute = parseLiveMinute(entry.getMinute());
     boolean finished = isFinished(entry);
@@ -877,8 +914,15 @@ public class GameService {
       }
     }
 
+    if (!finished && !knownScore && minute >= 46) {
+      entry.setScore("0-0?");
+    }
+
     entry.setHighlight(valueOrEmpty(tracker.highlight));
-    entry.setZeroZeroAfterHt(!finished && knownScore && totalGoals == 0 && minute >= 46);
+    entry.setZeroZeroAfterHt(
+        !finished
+            && minute >= 46
+            && ((knownScore && totalGoals == 0) || "0-0?".equals(entry.getScore())));
   }
 
   private int[] parseScore(String score) {
@@ -1015,6 +1059,7 @@ public class GameService {
     private boolean sixtySnapshotSaved;
     private boolean finishedZeroZeroSaved;
     private String highlight = "";
+    private String lastKnownScore;
   }
 
   private static final class ParsedAnalyticsFile {
