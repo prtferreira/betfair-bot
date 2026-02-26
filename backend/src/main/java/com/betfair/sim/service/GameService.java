@@ -62,17 +62,14 @@ public class GameService {
   private final BetfairApiClient betfairApiClient;
   private final StatpalLiveClient statpalLiveClient;
   private final Path followedGamesDir;
-  private final int domScrapeMaxPerRequest;
   private final Map<String, LiveTracker> liveTrackers = new ConcurrentHashMap<>();
 
   public GameService(
       BetfairApiClient betfairApiClient,
       StatpalLiveClient statpalLiveClient,
-      @Value("${betfair.dom-score.max-scrapes-per-request:20}") int domScrapeMaxPerRequest,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
     this.statpalLiveClient = statpalLiveClient;
-    this.domScrapeMaxPerRequest = Math.max(1, domScrapeMaxPerRequest);
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
   }
 
@@ -240,98 +237,19 @@ public class GameService {
           entry.setScore(inferred.getHomeScore() + "-" + inferred.getAwayScore());
         }
       }
-
       if (entry.getMinute() == null || entry.getMinute().isBlank()) {
         String inferred = inferMinuteFromKickoff(game.getStartTime(), now);
         entry.setMinute(inferred);
         entry.setMinuteSource("kickoff-estimate");
       }
+      if ("-".equals(entry.getScore())) {
+        String inferredFromOu05 = inferScoreFromOverUnder05(game, entry.getMinute());
+        if (!inferredFromOu05.isBlank()) {
+          entry.setScore(inferredFromOu05);
+        }
+      }
       applyLiveClassification(entry);
       entries.add(entry);
-    }
-
-    List<LiveGameEntry> highPriorityDomCandidates =
-        entries.stream()
-            .filter(entry -> "kickoff-estimate".equals(entry.getMinuteSource()))
-            .filter(
-                entry -> {
-                  int minute = parseLiveMinute(entry.getMinute());
-                  String score = valueOrEmpty(entry.getScore()).trim();
-                  return minute >= 46 && ("0-0".equals(score) || "0-0?".equals(score) || "-".equals(score));
-                })
-            .sorted(
-                Comparator.comparingInt((LiveGameEntry entry) -> parseLiveMinute(entry.getMinute()))
-                    .reversed())
-            .toList();
-    List<LiveGameEntry> missingScoreCandidates =
-        entries.stream()
-            .filter(entry -> "-".equals(entry.getScore()))
-            .sorted(
-                Comparator.comparingInt((LiveGameEntry entry) -> parseLiveMinute(entry.getMinute()))
-                    .reversed())
-            .toList();
-    List<LiveGameEntry> minuteOnlyCandidates =
-        entries.stream()
-            .filter(
-                entry ->
-                    !"-".equals(entry.getScore())
-                        && "kickoff-estimate".equals(entry.getMinuteSource()))
-            .toList();
-    List<LiveGameEntry> domCandidates = new ArrayList<>();
-    Set<String> addedDomKeys = new LinkedHashSet<>();
-    for (LiveGameEntry entry : highPriorityDomCandidates) {
-      if (domCandidates.size() >= domScrapeMaxPerRequest) {
-        break;
-      }
-      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
-      if (addedDomKeys.add(key)) {
-        domCandidates.add(entry);
-      }
-    }
-    for (LiveGameEntry entry : missingScoreCandidates) {
-      if (domCandidates.size() >= domScrapeMaxPerRequest) {
-        break;
-      }
-      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
-      if (addedDomKeys.add(key)) {
-        domCandidates.add(entry);
-      }
-    }
-    for (LiveGameEntry entry : minuteOnlyCandidates) {
-      if (domCandidates.size() >= domScrapeMaxPerRequest) {
-        break;
-      }
-      String key = valueOrEmpty(entry.getMarketId()) + "|" + valueOrEmpty(entry.getEventId());
-      if (addedDomKeys.add(key)) {
-        domCandidates.add(entry);
-      }
-    }
-    Map<String, BetfairApiClient.ExchangeLiveSnapshot> htmlSnapshotCache = new ConcurrentHashMap<>();
-    domCandidates.parallelStream()
-        .forEach(
-            entry ->
-                htmlSnapshotCache.computeIfAbsent(
-                    entry.getEventId(),
-                    key ->
-                        betfairApiClient.fetchExchangeLiveSnapshot(
-                            entry.getEventId(),
-                            entry.getLeague(),
-                            entry.getHomeTeam(),
-                            entry.getAwayTeam())));
-
-    for (LiveGameEntry entry : domCandidates) {
-      BetfairApiClient.ExchangeLiveSnapshot snapshot = htmlSnapshotCache.get(entry.getEventId());
-      if (snapshot != null && snapshot.score() != null && !snapshot.score().isBlank()) {
-        entry.setScore(snapshot.score());
-      }
-      if ("kickoff-estimate".equals(entry.getMinuteSource())
-          && snapshot != null
-          && snapshot.minute() != null
-          && !snapshot.minute().isBlank()) {
-        entry.setMinute(snapshot.minute());
-        entry.setMinuteSource("betfair-dom");
-      }
-      applyLiveClassification(entry);
     }
 
     entries.sort(Comparator.comparing(LiveGameEntry::getStartTime, String::compareTo));
@@ -775,6 +693,40 @@ public class GameService {
     }
   }
 
+  private String inferScoreFromOverUnder05(Game game, String minuteText) {
+    if (game == null) {
+      return "";
+    }
+    Double over05 = game.getOver05Odds();
+    Double under05 = game.getUnder05Odds();
+    if (over05 == null || under05 == null || over05 <= 0 || under05 <= 0) {
+      return "";
+    }
+    int minute = parseLiveMinute(minuteText);
+
+    // Strong 0-0 signal: UNDER 0.5 heavily favored.
+    if (under05 <= 1.35 && under05 * 1.8 <= over05) {
+      return "0-0?";
+    }
+    // In late game, loosen threshold slightly to keep 0-0 detection useful for HT/60+ tabs.
+    if (minute >= 60 && under05 <= 1.75 && under05 * 1.5 <= over05) {
+      return "0-0?";
+    }
+    if (minute >= 46 && "SUSPENDED".equalsIgnoreCase(valueOrEmpty(game.getOu05MarketStatus()))
+        && under05 <= 1.5) {
+      return "0-0?";
+    }
+
+    // Strong goal signal: OVER 0.5 heavily favored, so do not keep game as 0-0.
+    if (over05 <= 1.35 && over05 * 1.8 <= under05) {
+      return "1+?";
+    }
+    if (minute >= 60 && over05 <= 1.7 && over05 * 1.5 <= under05) {
+      return "1+?";
+    }
+    return "";
+  }
+
   private StatpalLiveClient.LiveMatch findBestStatpalMatch(
       Game game, List<StatpalLiveClient.LiveMatch> matches) {
     if (matches == null || matches.isEmpty() || game == null) {
@@ -876,16 +828,19 @@ public class GameService {
     String scoreText = valueOrEmpty(entry.getScore()).trim();
     if (scoreText.matches("\\d+\\s*-\\s*\\d+")) {
       tracker.lastKnownScore = scoreText.replaceAll("\\s+", "");
-    } else if (tracker.lastKnownScore != null && !tracker.lastKnownScore.isBlank()) {
+    } else if ((scoreText.isBlank() || "-".equals(scoreText))
+        && tracker.lastKnownScore != null
+        && !tracker.lastKnownScore.isBlank()) {
       entry.setScore(tracker.lastKnownScore);
     }
     int[] score = parseScore(entry.getScore());
     int minute = parseLiveMinute(entry.getMinute());
     boolean finished = isFinished(entry);
+    boolean inferredGoal = "1+?".equals(scoreText);
     boolean knownScore = score[0] >= 0 && score[1] >= 0;
     int totalGoals = knownScore ? score[0] + score[1] : -1;
 
-    if (tracker.firstGoalMinute == null && knownScore && totalGoals > 0) {
+    if (tracker.firstGoalMinute == null && (inferredGoal || (knownScore && totalGoals > 0))) {
       tracker.firstGoalMinute = minute > 0 ? minute : 1;
     }
     if (tracker.firstGoalMinute != null && tracker.firstGoalMinute <= 60) {
@@ -901,7 +856,7 @@ public class GameService {
         tracker.zeroZeroAt60 = true;
         tracker.highlight = "yellow";
       }
-      if (tracker.zeroZeroAt60 && knownScore && totalGoals > 0) {
+      if (tracker.zeroZeroAt60 && (inferredGoal || (knownScore && totalGoals > 0))) {
         tracker.highlight = "green";
       }
     }
@@ -922,6 +877,7 @@ public class GameService {
     entry.setZeroZeroAfterHt(
         !finished
             && minute >= 46
+            && !inferredGoal
             && ((knownScore && totalGoals == 0) || "0-0?".equals(entry.getScore())));
   }
 
