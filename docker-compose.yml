@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: betfair-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-betfair}
+      POSTGRES_USER: ${POSTGRES_USER:-betfair}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-betfair_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/main/resources/db/migration:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-betfair} -d ${POSTGRES_DB:-betfair}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+
+volumes:
+  postgres_data:
