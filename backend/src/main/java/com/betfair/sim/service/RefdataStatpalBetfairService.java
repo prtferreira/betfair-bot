@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Iterator;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -328,29 +329,38 @@ public class RefdataStatpalBetfairService {
     }
 
     List<ApiRawMatch> rawMatches = new ArrayList<>();
-    JsonNode leagues = root.path("live_matches").path("league");
+    JsonNode leagues = resolveLeagueNode(root);
+    if (leagues.isMissingNode() || leagues.isNull()) {
+      return List.of();
+    }
+    if (leagues.isObject()) {
+      collectLeagueMatches(rawMatches, leagues, date);
+      return toApiMatches(rawMatches, date);
+    }
     if (!leagues.isArray()) {
       return List.of();
     }
     for (JsonNode leagueNode : leagues) {
-      String leagueName = text(leagueNode.path("name"));
-      JsonNode matchNode = leagueNode.path("match");
-      if (matchNode.isArray()) {
-        for (JsonNode m : matchNode) {
-          collectApiMatch(rawMatches, m, leagueName, date);
-        }
-      } else if (matchNode.isObject()) {
-        collectApiMatch(rawMatches, matchNode, leagueName, date);
-      }
+      collectLeagueMatches(rawMatches, leagueNode, date);
     }
+    return toApiMatches(rawMatches, date);
+  }
 
+  private List<RefdataStatpalBetfairApiMatch> toApiMatches(
+      List<ApiRawMatch> rawMatches, LocalDate selectedDate) {
     Map<String, Integer> duplicateCountByMainId = new HashMap<>();
     for (ApiRawMatch raw : rawMatches) {
+      if (!selectedDate.equals(raw.matchDate())) {
+        continue;
+      }
       duplicateCountByMainId.merge(raw.mainId(), 1, Integer::sum);
     }
 
     Map<String, RefdataStatpalBetfairApiMatch> byId = new LinkedHashMap<>();
     for (ApiRawMatch raw : rawMatches) {
+      if (!selectedDate.equals(raw.matchDate())) {
+        continue;
+      }
       String resolvedApiId = raw.mainId();
       if (duplicateCountByMainId.getOrDefault(raw.mainId(), 0) > 1) {
         String fallbackId = raw.fallbackId1();
@@ -382,6 +392,39 @@ public class RefdataStatpalBetfairService {
     return byId.values().stream()
         .sorted(Comparator.comparing(RefdataStatpalBetfairApiMatch::getDisplayName))
         .toList();
+  }
+
+  private void collectLeagueMatches(
+      List<ApiRawMatch> out, JsonNode leagueNode, LocalDate fallbackDate) {
+    String leagueName = text(leagueNode.path("name"));
+    JsonNode matchNode = leagueNode.path("match");
+    if (matchNode.isArray()) {
+      for (JsonNode m : matchNode) {
+        collectApiMatch(out, m, leagueName, fallbackDate);
+      }
+    } else if (matchNode.isObject()) {
+      collectApiMatch(out, matchNode, leagueName, fallbackDate);
+    }
+  }
+
+  private JsonNode resolveLeagueNode(JsonNode root) {
+    JsonNode fromLiveMatches = root.path("live_matches").path("league");
+    if (!fromLiveMatches.isMissingNode() && !fromLiveMatches.isNull()) {
+      return fromLiveMatches;
+    }
+
+    Iterator<Map.Entry<String, JsonNode>> fields = root.fields();
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> field = fields.next();
+      JsonNode candidate = field.getValue();
+      if (candidate != null && candidate.isObject()) {
+        JsonNode leagues = candidate.path("league");
+        if (!leagues.isMissingNode() && !leagues.isNull()) {
+          return leagues;
+        }
+      }
+    }
+    return root.path("league");
   }
 
   private void collectApiMatch(

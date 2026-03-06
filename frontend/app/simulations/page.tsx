@@ -6,6 +6,7 @@ import "./simulations.css";
 
 type StrategyTab = "overunder1_5";
 type BetState = "OPEN" | "WON" | "LOST";
+type ViewTab = "open" | "wins" | "losses";
 
 interface LiveGameEntry {
   eventId: string;
@@ -52,18 +53,6 @@ interface OverUnder15Status {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://localhost:8089";
 
-function parseMinute(raw?: string): number | null {
-  const text = (raw || "").trim();
-  if (!text) return null;
-  const upper = text.toUpperCase().replace(/\s+/g, "");
-  if (upper === "HT" || upper === "HT'") {
-    return 45;
-  }
-  const match = text.match(/^(\d{1,3})(?:\+\d{1,2})?/);
-  if (!match) return null;
-  return Number(match[1]);
-}
-
 function formatUpdatedAt(raw: string): string {
   if (!raw) return "-";
   const date = new Date(raw);
@@ -71,8 +60,15 @@ function formatUpdatedAt(raw: string): string {
   return date.toLocaleTimeString();
 }
 
+function csvValue(value: unknown): string {
+  const text = String(value ?? "");
+  const escaped = text.replace(/"/g, "\"\"");
+  return `"${escaped}"`;
+}
+
 export default function SimulationsPage() {
   const [activeTab, setActiveTab] = useState<StrategyTab>("overunder1_5");
+  const [viewTab, setViewTab] = useState<ViewTab>("open");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<OverUnder15Status | null>(null);
@@ -111,35 +107,126 @@ export default function SimulationsPage() {
     };
   }, []);
 
-  const betsByEventId = useMemo(() => {
-    const map: Record<string, SimBet> = {};
-    for (const bet of status?.bets || []) {
-      map[bet.eventId] = bet;
+  const liveGameByEventId = useMemo(() => {
+    const map: Record<string, LiveGameEntry> = {};
+    for (const game of status?.liveGames || []) {
+      map[game.eventId] = game;
     }
     return map;
   }, [status]);
 
-  const visibleLiveGames = useMemo(
+  const openBets = useMemo(
     () =>
-      (status?.liveGames || []).filter((game) => {
-        const hasBet = Boolean(betsByEventId[game.eventId]);
-        const minuteValue = parseMinute(game.minute);
-        if (!hasBet && minuteValue != null && minuteValue > 30) {
-          return false;
-        }
-        return true;
-      }),
-    [status, betsByEventId]
+      (status?.bets || []).filter((bet) => bet.state === "OPEN"),
+    [status]
   );
+  const finishedWins = useMemo(
+    () =>
+      (status?.bets || []).filter((bet) => bet.state === "WON"),
+    [status]
+  );
+  const finishedLosses = useMemo(
+    () =>
+      (status?.bets || []).filter((bet) => bet.state === "LOST"),
+    [status]
+  );
+  const visibleBets = useMemo(() => {
+    if (viewTab === "wins") {
+      return finishedWins;
+    }
+    if (viewTab === "losses") {
+      return finishedLosses;
+    }
+    return openBets;
+  }, [viewTab, openBets, finishedWins, finishedLosses]);
+  const canExportFinished = viewTab === "wins" || viewTab === "losses";
+
+  const exportFinishedCsv = (): void => {
+    if (!canExportFinished || visibleBets.length === 0) {
+      return;
+    }
+    const header = [
+      "eventId",
+      "marketId",
+      "league",
+      "homeTeam",
+      "awayTeam",
+      "state",
+      "placedAtMinute",
+      "latestMinute",
+      "latestScore",
+      "odds",
+      "stake",
+      "profit",
+    ];
+    const lines = [header.join(",")];
+    for (const bet of visibleBets) {
+      lines.push(
+        [
+          csvValue(bet.eventId),
+          csvValue(bet.marketId),
+          csvValue(bet.league),
+          csvValue(bet.homeTeam),
+          csvValue(bet.awayTeam),
+          csvValue(bet.state),
+          csvValue(bet.placedAtMinute),
+          csvValue(bet.latestMinute),
+          csvValue(bet.latestScore),
+          csvValue(bet.odds.toFixed(2)),
+          csvValue(bet.stake.toFixed(2)),
+          csvValue(bet.profit.toFixed(2)),
+        ].join(",")
+      );
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    const suffix = viewTab === "wins" ? "finished-wins" : "finished-losses";
+    link.href = url;
+    link.download = `${suffix}-${dateStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+  const derivedCounts = useMemo(() => {
+    const bets = status?.bets || [];
+    let openCount = 0;
+    let finishedCount = 0;
+    let winCount = 0;
+    let lossCount = 0;
+    for (const bet of bets) {
+      const state = (bet.state || "").toUpperCase();
+      if (state === "OPEN") {
+        openCount++;
+      } else {
+        finishedCount++;
+      }
+      if (state === "WON") {
+        winCount++;
+      } else if (state === "LOST") {
+        lossCount++;
+      }
+    }
+    return { openCount, finishedCount, winCount, lossCount };
+  }, [status]);
+  const countMismatch =
+    status != null &&
+    (status.openBets !== derivedCounts.openCount ||
+      status.finishedBets !== derivedCounts.finishedCount ||
+      status.wins !== derivedCounts.winCount ||
+      status.losses !== derivedCounts.lossCount);
 
   const bank = status?.bank ?? 0;
   const settledProfit = status?.settledProfit ?? 0;
-  const wins = status?.wins ?? 0;
-  const losses = status?.losses ?? 0;
+  const wins = derivedCounts.winCount;
+  const losses = derivedCounts.lossCount;
   const wonValue = status?.wonValue ?? 0;
   const lostValue = status?.lostValue ?? 0;
-  const open = status?.openBets ?? 0;
-  const finished = status?.finishedBets ?? 0;
+  const open = derivedCounts.openCount;
+  const finished = derivedCounts.finishedCount;
   const stake = status?.stake ?? 20;
   const lastUpdated = formatUpdatedAt(status?.updatedAt || "");
 
@@ -164,6 +251,41 @@ export default function SimulationsPage() {
           overunder1_5
         </button>
       </div>
+      <div className="sim-tabs" role="tablist" aria-label="Bet views">
+        <button
+          type="button"
+          className={`sim-tab ${viewTab === "open" ? "sim-tab--active" : ""}`}
+          onClick={() => setViewTab("open")}
+        >
+          Open Bets ({open})
+        </button>
+        <button
+          type="button"
+          className={`sim-tab ${viewTab === "wins" ? "sim-tab--active" : ""}`}
+          onClick={() => setViewTab("wins")}
+        >
+          Finished Wins ({wins})
+        </button>
+        <button
+          type="button"
+          className={`sim-tab ${viewTab === "losses" ? "sim-tab--active" : ""}`}
+          onClick={() => setViewTab("losses")}
+        >
+          Finished Losses ({losses})
+        </button>
+      </div>
+      {canExportFinished ? (
+        <div className="sim-export-row">
+          <button
+            type="button"
+            className="sim-export-btn"
+            onClick={exportFinishedCsv}
+            disabled={visibleBets.length === 0}
+          >
+            Export {viewTab === "wins" ? "Finished Wins" : "Finished Losses"} CSV
+          </button>
+        </div>
+      ) : null}
 
       <section className="sim-card">
         <div className="sim-summary">
@@ -209,58 +331,59 @@ export default function SimulationsPage() {
 
       {loading ? <p className="sim-hint">Loading live simulations...</p> : null}
       {error ? <p className="sim-hint sim-neg">{error}</p> : null}
+      {!loading && !error && countMismatch ? (
+        <p className="sim-hint sim-neg">
+          Data consistency warning: server summary differs from bet records. Showing counts from bet records.
+        </p>
+      ) : null}
 
       {!loading && !error ? (
         <ul className="sim-list">
-          {visibleLiveGames.map((game) => {
-            const bet = betsByEventId[game.eventId];
-            const fixture = `${game.homeTeam || "Home"} vs ${game.awayTeam || "Away"}`;
-            const state = bet?.state || "OPEN";
+          {visibleBets.map((bet) => {
+            const game = liveGameByEventId[bet.eventId];
+            const fixture = `${bet.homeTeam || game?.homeTeam || "Home"} vs ${bet.awayTeam || game?.awayTeam || "Away"}`;
+            const state = bet.state;
             const stateClass =
               state === "WON" ? "sim-pill--won" : state === "LOST" ? "sim-pill--lost" : "sim-pill--open";
             const possibleProfit =
-              bet && bet.state === "OPEN"
-                ? Number((bet.stake * bet.odds - bet.stake).toFixed(2))
-                : null;
-            const possibleLoss = bet && bet.state === "OPEN" ? Number(bet.stake.toFixed(2)) : null;
+              state === "OPEN" ? Number((bet.stake * bet.odds - bet.stake).toFixed(2)) : null;
+            const possibleLoss = state === "OPEN" ? Number(bet.stake.toFixed(2)) : null;
 
             return (
-              <li key={`${game.marketId}|${game.eventId}`} className="sim-row">
+              <li key={`${bet.marketId}|${bet.eventId}`} className="sim-row">
                 <div className="sim-row-top">
                   <div>
                     <div className="sim-fixture">{fixture}</div>
-                    <div className="sim-league">{game.league || "-"}</div>
+                    <div className="sim-league">{bet.league || game?.league || "-"}</div>
                   </div>
-                  <span className={`sim-pill ${stateClass}`}>{bet ? state : "NO BET"}</span>
+                  <span className={`sim-pill ${stateClass}`}>{state}</span>
                 </div>
 
                 <div className="sim-grid">
                   <div>
                     <div className="sim-k">Live minute</div>
-                    <div className="sim-v">{game.minute || "-"}</div>
+                    <div className="sim-v">{game?.minute || bet.latestMinute || bet.placedAtMinute || "-"}</div>
                   </div>
                   <div>
                     <div className="sim-k">Live goals</div>
-                    <div className="sim-v">{game.score || "-"}</div>
+                    <div className="sim-v">{game?.score || bet.latestScore || "-"}</div>
                   </div>
                   <div>
                     <div className="sim-k">Entry odds</div>
-                    <div className="sim-v">{bet ? bet.odds.toFixed(2) : "-"}</div>
+                    <div className="sim-v">{bet.odds.toFixed(2)}</div>
                   </div>
                   <div>
                     <div className="sim-k">
-                      {bet && bet.state === "OPEN" ? "Possible P/L" : "Virtual P/L"}
+                      {state === "OPEN" ? "Possible P/L" : "Virtual P/L"}
                     </div>
-                    <div className={`sim-v ${bet && bet.profit < 0 ? "sim-neg" : "sim-pos"}`}>
-                      {bet && bet.state === "OPEN"
+                    <div className={`sim-v ${bet.profit < 0 ? "sim-neg" : "sim-pos"}`}>
+                      {state === "OPEN"
                         ? `+${possibleProfit?.toFixed(2)} / -${possibleLoss?.toFixed(2)}`
-                        : bet
-                        ? `${bet.profit >= 0 ? "+" : ""}${bet.profit.toFixed(2)}`
-                        : "-"}
+                        : `${bet.profit >= 0 ? "+" : ""}${bet.profit.toFixed(2)}`}
                     </div>
                   </div>
                 </div>
-                {bet && bet.state === "OPEN" ? (
+                {state === "OPEN" ? (
                   <div className="sim-league">
                     {bet.stake.toFixed(2)} EUR * {bet.odds.toFixed(2)} = Possible profit +{possibleProfit?.toFixed(2)} EUR vs possible loss -{possibleLoss?.toFixed(2)} EUR
                   </div>
@@ -269,6 +392,15 @@ export default function SimulationsPage() {
             );
           })}
         </ul>
+      ) : null}
+      {!loading && !error && visibleBets.length === 0 ? (
+        <p className="sim-hint">
+          {viewTab === "open"
+            ? "No open bets."
+            : viewTab === "wins"
+            ? "No finished winning bets."
+            : "No finished losing bets."}
+        </p>
       ) : null}
     </main>
   );

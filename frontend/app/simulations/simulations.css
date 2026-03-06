@@ -49,6 +49,27 @@
   border-color: #89bdf5;
 }
 
+.sim-export-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 12px;
+}
+
+.sim-export-btn {
+  border: 1px solid #c9d6e2;
+  background: #f7fbff;
+  color: #18324a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sim-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .sim-card {
   border: 1px solid #d7e1ea;
   border-radius: 12px;
