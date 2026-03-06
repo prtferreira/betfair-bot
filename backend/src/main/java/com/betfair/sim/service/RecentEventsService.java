@@ -128,11 +128,21 @@ public class RecentEventsService {
     List<RawRecentEvent> dedupedRows = new ArrayList<>(uniqueRows.values());
 
     jdbcTemplate.batchUpdate(
-        "MERGE INTO recent_events ("
+        "INSERT INTO recent_events ("
             + "main_id, match_date, league_name, home_team, away_team, "
             + "ht_home_goals, ht_away_goals, ft_home_goals, ft_away_goals, status, source_file, updated_at"
-            + ") KEY(main_id, match_date) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            + "ON CONFLICT (main_id, match_date) DO UPDATE SET "
+            + "league_name = EXCLUDED.league_name, "
+            + "home_team = EXCLUDED.home_team, "
+            + "away_team = EXCLUDED.away_team, "
+            + "ht_home_goals = EXCLUDED.ht_home_goals, "
+            + "ht_away_goals = EXCLUDED.ht_away_goals, "
+            + "ft_home_goals = EXCLUDED.ft_home_goals, "
+            + "ft_away_goals = EXCLUDED.ft_away_goals, "
+            + "status = EXCLUDED.status, "
+            + "source_file = EXCLUDED.source_file, "
+            + "updated_at = CURRENT_TIMESTAMP",
         dedupedRows,
         dedupedRows.size(),
         (ps, row) -> {

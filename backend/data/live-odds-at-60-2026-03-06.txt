@@ -4,3 +4,8 @@
 2026-03-06 | Thanh Hoa vs Hong Linh Ha Tinh | minute=60 | Thanh Hoa=4.1, Draw=1.9, Hong Linh Ha Tinh=3.95
 2026-03-06 | AS Solimane vs Esperance Sportive Zarzis | minute=60 | AS Solimane=5.7, Draw=1.8, Esperance Sportive Zarzis=3.45
 2026-03-06 | Beykoz Anadolu Spor vs Iskenderunspor | minute=60 | Beykoz Anadolu Spor=5.0, Draw=2.04, Iskenderunspor=3.0
+2026-03-06 | AS Gabes vs JS Omrane | minute=90 | AS Gabes=1.01, Draw=1.01, JS Omrane=-
+2026-03-06 | Tanjong Pagar United vs Albirex Niigata (SIN) | minute=80 | Tanjong Pagar United=280.0, Draw=80.0, Albirex Niigata (SIN)=-
+2026-03-06 | Beykoz Anadolu Spor vs Iskenderunspor | minute=79 | Beykoz Anadolu Spor=1.8, Draw=1.53, Iskenderunspor=1.13
+2026-03-06 | Bucaspor vs Erbaaspor | minute=78 | Bucaspor=7.0, Draw=1.78, Erbaaspor=3.05
+2026-03-06 | Updf FC vs Airtel Kitara FC | minute=60 | Updf FC=4.9, Draw=1.74, Airtel Kitara FC=3.95

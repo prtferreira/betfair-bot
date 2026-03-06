@@ -302,11 +302,16 @@ public class RefdataStatpalBetfairService {
       return;
     }
     jdbcTemplate.update(
-        "MERGE INTO refdata_statpal_betfair_team ("
+        "INSERT INTO refdata_statpal_betfair_team ("
             + "statpal_team_name, betfair_team_name, normalized_statpal_team, normalized_betfair_team, "
             + "mapping_source, confidence_score, updated_at"
-            + ") KEY(normalized_statpal_team, normalized_betfair_team) "
-            + "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            + ") VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            + "ON CONFLICT (normalized_statpal_team, normalized_betfair_team) DO UPDATE SET "
+            + "statpal_team_name = EXCLUDED.statpal_team_name, "
+            + "betfair_team_name = EXCLUDED.betfair_team_name, "
+            + "mapping_source = EXCLUDED.mapping_source, "
+            + "confidence_score = EXCLUDED.confidence_score, "
+            + "updated_at = CURRENT_TIMESTAMP",
         statpal,
         betfair,
         normalizedStatpal,

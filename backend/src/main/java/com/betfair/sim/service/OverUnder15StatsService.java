@@ -345,10 +345,21 @@ public class OverUnder15StatsService {
 
   private void persistStrategyBalance(OverUnder15StatusResponse status, String updatedAt) {
     jdbcTemplate.update(
-        "MERGE INTO overunder_strategy_balances ("
+        "INSERT INTO overunder_strategy_balances ("
             + "strategy_id, current_balance, settled_profit, open_bets, finished_bets, wins, losses, "
             + "won_value, lost_value, stake, updated_at"
-            + ") KEY(strategy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            + "ON CONFLICT (strategy_id) DO UPDATE SET "
+            + "current_balance = EXCLUDED.current_balance, "
+            + "settled_profit = EXCLUDED.settled_profit, "
+            + "open_bets = EXCLUDED.open_bets, "
+            + "finished_bets = EXCLUDED.finished_bets, "
+            + "wins = EXCLUDED.wins, "
+            + "losses = EXCLUDED.losses, "
+            + "won_value = EXCLUDED.won_value, "
+            + "lost_value = EXCLUDED.lost_value, "
+            + "stake = EXCLUDED.stake, "
+            + "updated_at = CURRENT_TIMESTAMP",
         status.getStrategyId(),
         status.getBank(),
         status.getSettledProfit(),
