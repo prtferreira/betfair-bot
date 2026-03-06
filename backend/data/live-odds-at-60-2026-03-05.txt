@@ -1,0 +1,27 @@
+2026-03-05 | Persijap Jepara vs Persis Solo | minute=86 | Persijap Jepara=6.4, Draw=1.54, Persis Solo=3.6
+2026-03-05 | Persik Kediri vs PSBS Biak Numfor | minute=85 | Persik Kediri=2.02, Draw=1.66, PSBS Biak Numfor=4.6
+2026-03-05 | Fk Novi Pazar vs Crvena Zvezda | minute=70 | Fk Novi Pazar=100.0, Draw=36.0, Crvena Zvezda=1.02
+2026-03-05 | Lokomotiv Plovdiv vs CSKA 1948 Sofia | minute=68 | Lokomotiv Plovdiv=200.0, Draw=100.0, CSKA 1948 Sofia=-
+2026-03-05 | Enna Calcio vs Club Atletico Palermo | minute=60 | Enna Calcio=70.0, Draw=14.0, Club Atletico Palermo=1.08
+2026-03-05 | Maritimo U23 vs GD Estoril Praia U23 | minute=60 | Maritimo U23=3.1, Draw=2.4, GD Estoril Praia U23=3.5
+2026-03-05 | FK Qabala vs FC Sabah | minute=60 | FK Qabala=50.0, Draw=9.8, FC Sabah=1.12
+2026-03-05 | Gabala vs Sabah Baku | minute=62 | Gabala=120.0, Draw=55.0, Sabah Baku=1.01
+2026-03-05 | Lok. Plovdiv vs CSKA 1948 Sofia | minute=81 | Lok. Plovdiv=38.0, Draw=90.0, CSKA 1948 Sofia=-
+2026-03-05 | Dinamo Tbilisi 2 vs Khobi | minute=69 | Dinamo Tbilisi 2=-, Draw=-, Khobi=-
+2026-03-05 | Enna vs Athletic Palermo | minute=63 | Enna=24.0, Draw=5.1, Athletic Palermo=1.25
+2026-03-05 | Novi Pazar vs Crvena zvezda | minute=70 | Novi Pazar=100.0, Draw=60.0, Crvena zvezda=1.01
+2026-03-05 | Novi Pazar vs Crvena zvezda | minute=85 | Novi Pazar=-, Draw=-, Crvena zvezda=-
+2026-03-05 | Gabala vs Sabah Baku | minute=90 | Gabala=-, Draw=-, Sabah Baku=-
+2026-03-05 | Pelister vs Sileks | minute=69 | Pelister=5.2, Draw=1.72, Sileks=4.1
+2026-03-05 | Portugal U23 W vs Czech Republic U23 W | minute=64 | Portugal U23 W=1.18, Draw=7.2, Czech Republic U23 W=36.0
+2026-03-05 | Pelister Bitola vs FK Sileks | minute=82 | Pelister Bitola=8.0, Draw=1.43, FK Sileks=5.2
+2026-03-05 | Portugal U23 (W) vs Czechia U23 (W) | minute=77 | Portugal U23 (W)=1.17, Draw=7.6, Czechia U23 (W)=40.0
+2026-03-05 | Ludogorets vs PFC Levski Sofia | minute=90 | Ludogorets=1.02, Draw=34.0, PFC Levski Sofia=1000.0
+2026-03-05 | Ludogorets vs PFC Levski Sofia | minute=90 | Ludogorets=1.01, Draw=34.0, PFC Levski Sofia=1000.0
+2026-03-05 | S.S.D. Casarano Calcio vs Siracusa | minute=75 | S.S.D. Casarano Calcio=1.24, Draw=5.6, Siracusa=36.0
+2026-03-05 | AZ Picerno ASD vs Atalanta B | minute=81 | AZ Picerno ASD=5.7, Draw=1.53, Atalanta B=5.2
+2026-03-05 | FC Giugliano vs Monopoli | minute=75 | FC Giugliano=1.25, Draw=5.2, Monopoli=38.0
+2026-03-05 | US Latina Calcio vs Sorrento | minute=78 | US Latina Calcio=1.01, Draw=50.0, Sorrento=110.0
+2026-03-05 | JK Welco Elekter vs Tallinna Kalev | minute=82 | JK Welco Elekter=-, Draw=100.0, Tallinna Kalev=220.0
+2026-03-05 | Marsa FC vs Birzebbuga St Peters | minute=79 | Marsa FC=120.0, Draw=14.0, Birzebbuga St Peters=-
+2026-03-05 | Bodrum Belediyesi Bodrums vs 76 Igdir Belediyespor | minute=60 | Bodrum Belediyesi Bodrums=6.2, Draw=2.4, 76 Igdir Belediyespor=2.28

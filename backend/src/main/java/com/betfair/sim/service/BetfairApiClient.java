@@ -5,11 +5,6 @@ import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.EventSelection;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -27,7 +22,6 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,8 +38,6 @@ public class BetfairApiClient {
   private static final int MARKET_BOOK_BATCH_SIZE = 40;
   private static final int AUX_EVENT_BATCH_SIZE = 20;
   private static final Pattern GOAL_LINE_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)");
-  private static final Pattern SCORE_SPAN_PATTERN =
-      Pattern.compile("<span[^>]*class=\"[^\"]*score[^\"]*\"[^>]*>([^<]+)</span>", Pattern.CASE_INSENSITIVE);
   private static final Logger LOGGER = LoggerFactory.getLogger(BetfairApiClient.class);
 
   private final RestTemplate restTemplate;
@@ -54,10 +46,6 @@ public class BetfairApiClient {
   private final String rpcBaseUrl;
   private final String appKey;
   private final String sessionToken;
-  private final boolean domScorePlaywrightEnabled;
-  private final String domScorePlaywrightNodeCommand;
-  private final String domScorePlaywrightScriptPath;
-  private final int domScorePlaywrightTimeoutMs;
 
   public BetfairApiClient(
       RestTemplateBuilder restTemplateBuilder,
@@ -66,21 +54,13 @@ public class BetfairApiClient {
       @Value("${betfair.rpc.base-url:https://api.betfair.com/exchange/betting/json-rpc/v1}")
           String rpcBaseUrl,
       @Value("${betfair.app-key:}") String appKey,
-      @Value("${betfair.session-token:}") String sessionToken,
-      @Value("${betfair.dom-score.playwright.enabled:true}") boolean domScorePlaywrightEnabled,
-      @Value("${betfair.dom-score.playwright.node-command:node}") String domScorePlaywrightNodeCommand,
-      @Value("${betfair.dom-score.playwright.script-path:../tools/betfair-score.js}") String domScorePlaywrightScriptPath,
-      @Value("${betfair.dom-score.playwright.timeout-ms:18000}") int domScorePlaywrightTimeoutMs) {
+      @Value("${betfair.session-token:}") String sessionToken) {
     this.restTemplate = restTemplateBuilder.build();
     this.objectMapper = objectMapper;
     this.sessionStore = sessionStore;
     this.rpcBaseUrl = rpcBaseUrl;
     this.appKey = appKey;
     this.sessionToken = sessionToken;
-    this.domScorePlaywrightEnabled = domScorePlaywrightEnabled;
-    this.domScorePlaywrightNodeCommand = domScorePlaywrightNodeCommand;
-    this.domScorePlaywrightScriptPath = domScorePlaywrightScriptPath;
-    this.domScorePlaywrightTimeoutMs = domScorePlaywrightTimeoutMs;
   }
 
   public boolean isEnabled() {
@@ -532,99 +512,8 @@ public class BetfairApiClient {
 
   public ExchangeLiveSnapshot fetchExchangeLiveSnapshot(
       String eventId, String league, String homeTeam, String awayTeam) {
-    if (eventId == null || eventId.isBlank()) {
-      return new ExchangeLiveSnapshot("", "");
-    }
-    String competitionSlug = slugify(league);
-    String eventSlug = slugify(homeTeam) + "-v-" + slugify(awayTeam);
-    if (competitionSlug.isBlank()) {
-      competitionSlug = "football";
-    }
-    String primaryUrl =
-        "https://www.betfair.com/exchange/plus/en/football/"
-            + competitionSlug
-            + "/"
-            + eventSlug
-            + "-betting-"
-            + eventId;
-    List<String> fallbackUrls =
-        List.of(
-            primaryUrl,
-            "https://www.betfair.com/exchange/plus/en/football/" + eventSlug + "-betting-" + eventId,
-            "https://www.betfair.com/exchange/plus/en/football/event/" + eventId);
-
-    for (String url : fallbackUrls) {
-      ExchangeLiveSnapshot snapshot = parseSnapshotWithPlaywright(url, eventId);
-      if (snapshot != null && (!snapshot.score().isBlank() || !snapshot.minute().isBlank())) {
-        return snapshot;
-      }
-    }
-
+    // Playwright score scraping is intentionally disabled.
     return new ExchangeLiveSnapshot("", "");
-  }
-
-  private ExchangeLiveSnapshot parseSnapshotWithPlaywright(String url, String eventId) {
-    if (!domScorePlaywrightEnabled) {
-      return new ExchangeLiveSnapshot("", "");
-    }
-    Path scriptPath = resolvePlaywrightScriptPath();
-    if (scriptPath == null) {
-      return new ExchangeLiveSnapshot("", "");
-    }
-    ProcessBuilder processBuilder =
-        new ProcessBuilder(domScorePlaywrightNodeCommand, scriptPath.toString(), url);
-    processBuilder.redirectErrorStream(true);
-    try {
-      Process process = processBuilder.start();
-      boolean finished = process.waitFor(Math.max(1000, domScorePlaywrightTimeoutMs), TimeUnit.MILLISECONDS);
-      if (!finished) {
-        process.destroyForcibly();
-        LOGGER.debug("Playwright score scrape timeout for eventId={} url={}", eventId, url);
-        return new ExchangeLiveSnapshot("", "");
-      }
-      String output;
-      try (BufferedReader reader =
-          new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-        output = reader.lines().collect(Collectors.joining()).trim();
-      }
-      if (process.exitValue() != 0) {
-        LOGGER.debug("Playwright score scrape failed for eventId={} url={} exit={}", eventId, url, process.exitValue());
-        return new ExchangeLiveSnapshot("", "");
-      }
-      if (output == null || output.isBlank()) {
-        return new ExchangeLiveSnapshot("", "");
-      }
-      JsonNode node = objectMapper.readTree(output);
-      String score = node.path("score").asText("").trim();
-      String minute = node.path("minute").asText("").trim();
-      if (!score.matches("\\d+-\\d+")) {
-        score = "";
-      }
-      if (!minute.matches("^\\d{1,3}(?:\\+\\d{1,2})?'$") && !"HT".equals(minute) && !"FT".equals(minute)
-          && !"Finished".equalsIgnoreCase(minute)) {
-        minute = "";
-      }
-      return new ExchangeLiveSnapshot(score, minute);
-    } catch (Exception ex) {
-      LOGGER.debug("Playwright score scrape error for eventId={} url={}", eventId, url);
-      return new ExchangeLiveSnapshot("", "");
-    }
-  }
-
-  private Path resolvePlaywrightScriptPath() {
-    Path configured = Paths.get(domScorePlaywrightScriptPath);
-    if (Files.exists(configured)) {
-      return configured;
-    }
-    Path localTools = Paths.get("tools", "betfair-score.js");
-    if (Files.exists(localTools)) {
-      return localTools;
-    }
-    Path parentTools = Paths.get("..", "tools", "betfair-score.js");
-    if (Files.exists(parentTools)) {
-      return parentTools;
-    }
-    return null;
   }
 
   public Map<String, MarketStatus> getMarketStatuses(List<String> marketIds) {

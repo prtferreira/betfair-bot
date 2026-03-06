@@ -1,0 +1,6 @@
+2026-03-06 | Bangladesh Police vs Brothers Union | minute=60 | Bangladesh Police=1.93, Draw=2.78, Brothers Union=6.6
+2026-03-06 | Stabaek vs Sogndal | minute=60 | Stabaek=3.15, Draw=2.52, Sogndal=3.2
+2026-03-06 | Oleksandria vs Shakhtar | minute=60 | Oleksandria=12.5, Draw=3.45, Shakhtar=1.55
+2026-03-06 | Thanh Hoa vs Hong Linh Ha Tinh | minute=60 | Thanh Hoa=4.1, Draw=1.9, Hong Linh Ha Tinh=3.95
+2026-03-06 | AS Solimane vs Esperance Sportive Zarzis | minute=60 | AS Solimane=5.7, Draw=1.8, Esperance Sportive Zarzis=3.45
+2026-03-06 | Beykoz Anadolu Spor vs Iskenderunspor | minute=60 | Beykoz Anadolu Spor=5.0, Draw=2.04, Iskenderunspor=3.0

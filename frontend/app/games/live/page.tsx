@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./live.css";
 
 interface LiveGameEntry {
+  statpalMatchId?: string;
   eventId: string;
   marketId: string;
   league?: string;
@@ -19,6 +20,8 @@ interface LiveGameEntry {
   score?: string;
   minute?: string;
   minuteSource?: string;
+  goalScored?: boolean;
+  mappedToBetfair?: boolean;
   highlight?: string;
   zeroZeroAfterHt?: boolean;
 }
@@ -176,7 +179,7 @@ export default function LiveGamesPage() {
         </p>
         <h1 className="live-title">Live Games</h1>
         <p className="live-subtitle">
-          In-play matches with minute estimate from live feed and kickoff time.
+          Statpal live minute/result/goal feed with Betfair odds via your ID mapping table.
         </p>
 
         <div className="live-actions">
@@ -238,9 +241,15 @@ export default function LiveGamesPage() {
                   {game.minuteSource ? ` (${game.minuteSource})` : ""}
                 </p>
                 <p className="live-meta">score: {game.score || "-"}</p>
+                <p className="live-meta">goal in match: {game.goalScored ? "yes" : "no"}</p>
                 <p className="live-meta">
                   odds H/D/A: {game.homeOdds ?? "-"} / {game.drawOdds ?? "-"} /{" "}
                   {game.awayOdds ?? "-"}
+                </p>
+                <p className="live-meta">
+                  mapping: {game.mappedToBetfair ? "mapped" : "missing"}
+                  {game.statpalMatchId ? ` | statpalId: ${game.statpalMatchId}` : ""}
+                  {game.eventId ? ` | betfairId: ${game.eventId}` : ""}
                 </p>
               </li>
             )})}

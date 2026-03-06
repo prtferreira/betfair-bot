@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 5173",
-    "build": "next build",
-    "start": "next start -p 5173",
+    "dev": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev --webpack -p 5173",
+    "build": "node --max-old-space-size=6144 ./node_modules/next/dist/bin/next build",
+    "start": "node --max-old-space-size=2048 ./node_modules/next/dist/bin/next start -p 5173",
     "lint": "next lint"
   },
   "dependencies": {

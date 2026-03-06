@@ -1,6 +1,7 @@
 package com.betfair.sim.model;
 
 public class LiveGameEntry {
+  private String statpalMatchId;
   private String eventId;
   private String marketId;
   private String league;
@@ -15,10 +16,20 @@ public class LiveGameEntry {
   private String score;
   private String minute;
   private String minuteSource;
+  private boolean goalScored;
+  private boolean mappedToBetfair;
   private String highlight;
   private boolean zeroZeroAfterHt;
 
   public LiveGameEntry() {}
+
+  public String getStatpalMatchId() {
+    return statpalMatchId;
+  }
+
+  public void setStatpalMatchId(String statpalMatchId) {
+    this.statpalMatchId = statpalMatchId;
+  }
 
   public String getEventId() {
     return eventId;
@@ -130,6 +141,22 @@ public class LiveGameEntry {
 
   public void setMinuteSource(String minuteSource) {
     this.minuteSource = minuteSource;
+  }
+
+  public boolean isGoalScored() {
+    return goalScored;
+  }
+
+  public void setGoalScored(boolean goalScored) {
+    this.goalScored = goalScored;
+  }
+
+  public boolean isMappedToBetfair() {
+    return mappedToBetfair;
+  }
+
+  public void setMappedToBetfair(boolean mappedToBetfair) {
+    this.mappedToBetfair = mappedToBetfair;
   }
 
   public String getHighlight() {

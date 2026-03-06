@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +35,7 @@ public class SimulationBetService {
   private final BetfairApiClient betfairApiClient;
   private final StatpalLiveClient statpalLiveClient;
   private final ObjectMapper objectMapper;
+  private final JdbcTemplate jdbcTemplate;
   private final Path dataDir;
   private final Path betsFile;
   private final double startBalance;
@@ -42,14 +44,17 @@ public class SimulationBetService {
       BetfairApiClient betfairApiClient,
       StatpalLiveClient statpalLiveClient,
       ObjectMapper objectMapper,
+      JdbcTemplate jdbcTemplate,
       @Value("${betfair.simulation.dir:backend/data}") String dataDir,
       @Value("${betfair.simulation.start-balance:1000}") double startBalance) {
     this.betfairApiClient = betfairApiClient;
     this.statpalLiveClient = statpalLiveClient;
     this.objectMapper = objectMapper;
+    this.jdbcTemplate = jdbcTemplate;
     this.dataDir = Paths.get(dataDir);
     this.betsFile = this.dataDir.resolve("simulation-bets.jsonl");
     this.startBalance = startBalance;
+    initSchema();
   }
 
   public synchronized Path appendBets(
@@ -79,7 +84,9 @@ public class SimulationBetService {
       record.setStatus("OPEN");
       record.setMarketStatus("");
       record.setInPlay(false);
+      record.setBalanceApplied(false);
       record.setProfit(null);
+      ensureStrategyBalanceRow(record.getStrategyId(), record.getStrategyName());
       records.add(record);
     }
     if (records.isEmpty()) {
@@ -106,7 +113,12 @@ public class SimulationBetService {
 
   public synchronized SimulationBetStatusResponse getStatus() {
     List<SimulationBetRecord> bets = loadBets();
+    ensureStrategyRowsFromBets(bets);
+    boolean backfilledBalances = applyPendingSettledBalances(bets);
     if (bets.isEmpty() || !betfairApiClient.isEnabled()) {
+      if (backfilledBalances) {
+        saveAll(bets);
+      }
       return buildStatusResponse(bets, Instant.now().toString());
     }
 
@@ -118,6 +130,9 @@ public class SimulationBetService {
             .distinct()
             .toList();
     if (marketIds.isEmpty()) {
+      if (backfilledBalances) {
+        saveAll(bets);
+      }
       return buildStatusResponse(bets, Instant.now().toString());
     }
 
@@ -191,11 +206,13 @@ public class SimulationBetService {
         bet.setProfit(profit);
         bet.setStatus("SETTLED");
         bet.setSettledAt(now);
+        applySettledBetToStrategyBalance(bet);
+        bet.setBalanceApplied(true);
         updated = true;
       }
     }
 
-    if (updated || trackingUpdated) {
+    if (updated || trackingUpdated || backfilledBalances) {
       saveAll(bets);
     }
 
@@ -429,17 +446,7 @@ public class SimulationBetService {
                 .filter(bet -> bet.getProfit() != null)
                 .mapToDouble(SimulationBetRecord::getProfit)
                 .sum();
-    Map<String, Double> byStrategy = new LinkedHashMap<>();
-    for (SimulationBetRecord bet : bets) {
-      if (bet.getProfit() == null) {
-        continue;
-      }
-      String key = bet.getStrategyName();
-      if (key == null || key.isBlank()) {
-        key = bet.getStrategyId() == null ? "Unknown" : bet.getStrategyId();
-      }
-      byStrategy.put(key, byStrategy.getOrDefault(key, 0.0) + bet.getProfit());
-    }
+    Map<String, Double> byStrategy = loadStrategyBalances();
 
     int valueGlobalWins = 0;
     int valueGlobalLosses = 0;
@@ -537,5 +544,147 @@ public class SimulationBetService {
     } catch (IOException ex) {
       throw new UncheckedIOException("Failed to update simulation bets", ex);
     }
+  }
+
+  private void initSchema() {
+    jdbcTemplate.execute(
+        "CREATE TABLE IF NOT EXISTS strategy_balances ("
+            + "strategy_id VARCHAR(64) PRIMARY KEY,"
+            + "strategy_name VARCHAR(128),"
+            + "current_balance DOUBLE NOT NULL DEFAULT 0,"
+            + "total_profit DOUBLE NOT NULL DEFAULT 0,"
+            + "settled_bets INT NOT NULL DEFAULT 0,"
+            + "wins INT NOT NULL DEFAULT 0,"
+            + "losses INT NOT NULL DEFAULT 0,"
+            + "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            + "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            + ")");
+  }
+
+  private void ensureStrategyRowsFromBets(List<SimulationBetRecord> bets) {
+    for (SimulationBetRecord bet : bets) {
+      if (bet == null) {
+        continue;
+      }
+      ensureStrategyBalanceRow(bet.getStrategyId(), bet.getStrategyName());
+    }
+  }
+
+  private void ensureStrategyBalanceRow(String strategyId, String strategyName) {
+    String id = normalizeStrategyId(strategyId, strategyName);
+    if (id.isBlank()) {
+      return;
+    }
+    String name = normalizeStrategyName(strategyName, id);
+    int updated =
+        jdbcTemplate.update(
+            "UPDATE strategy_balances SET strategy_name = ?, updated_at = CURRENT_TIMESTAMP WHERE strategy_id = ?",
+            name,
+            id);
+    if (updated > 0) {
+      return;
+    }
+    jdbcTemplate.update(
+        "INSERT INTO strategy_balances ("
+            + "strategy_id, strategy_name, current_balance, total_profit, settled_bets, wins, losses, updated_at"
+            + ") VALUES (?, ?, ?, 0, 0, 0, 0, CURRENT_TIMESTAMP)",
+        id,
+        name,
+        startBalance);
+  }
+
+  private boolean applyPendingSettledBalances(List<SimulationBetRecord> bets) {
+    boolean changed = false;
+    for (SimulationBetRecord bet : bets) {
+      if (bet == null) {
+        continue;
+      }
+      if (!"SETTLED".equalsIgnoreCase(bet.getStatus())) {
+        continue;
+      }
+      if (bet.getProfit() == null) {
+        continue;
+      }
+      if (bet.isBalanceApplied()) {
+        continue;
+      }
+      applySettledBetToStrategyBalance(bet);
+      bet.setBalanceApplied(true);
+      changed = true;
+    }
+    return changed;
+  }
+
+  private void applySettledBetToStrategyBalance(SimulationBetRecord bet) {
+    if (bet == null || bet.getProfit() == null) {
+      return;
+    }
+    String strategyId = normalizeStrategyId(bet.getStrategyId(), bet.getStrategyName());
+    if (strategyId.isBlank()) {
+      return;
+    }
+    String strategyName = normalizeStrategyName(bet.getStrategyName(), strategyId);
+    ensureStrategyBalanceRow(strategyId, strategyName);
+
+    double profit = bet.getProfit();
+    int win = profit > 0.0d ? 1 : 0;
+    int loss = profit < 0.0d ? 1 : 0;
+    jdbcTemplate.update(
+        "UPDATE strategy_balances "
+            + "SET strategy_name = ?, "
+            + "current_balance = current_balance + ?, "
+            + "total_profit = total_profit + ?, "
+            + "settled_bets = settled_bets + 1, "
+            + "wins = wins + ?, "
+            + "losses = losses + ?, "
+            + "updated_at = CURRENT_TIMESTAMP "
+            + "WHERE strategy_id = ?",
+        strategyName,
+        profit,
+        profit,
+        win,
+        loss,
+        strategyId);
+  }
+
+  private Map<String, Double> loadStrategyBalances() {
+    List<Map<String, Object>> rows =
+        jdbcTemplate.queryForList(
+            "SELECT strategy_id, strategy_name, current_balance FROM strategy_balances ORDER BY strategy_name, strategy_id");
+    Map<String, Double> result = new LinkedHashMap<>();
+    for (Map<String, Object> row : rows) {
+      String strategyId = valueOrBlank((String) row.get("strategy_id"));
+      String strategyName = valueOrBlank((String) row.get("strategy_name"));
+      String key = strategyName.isBlank() ? strategyId : strategyName;
+      Object raw = row.get("current_balance");
+      double balance =
+          raw instanceof Number ? ((Number) raw).doubleValue() : startBalance;
+      result.put(key.isBlank() ? "Unknown" : key, balance);
+    }
+    return result;
+  }
+
+  private String normalizeStrategyId(String strategyId, String strategyName) {
+    String id = valueOrBlank(strategyId).trim();
+    if (!id.isBlank()) {
+      return id;
+    }
+    String fallback = valueOrBlank(strategyName).trim();
+    if (!fallback.isBlank()) {
+      return fallback.toLowerCase().replaceAll("\\s+", "_");
+    }
+    return "";
+  }
+
+  private String normalizeStrategyName(String strategyName, String strategyId) {
+    String name = valueOrBlank(strategyName).trim();
+    if (!name.isBlank()) {
+      return name;
+    }
+    return valueOrBlank(strategyId);
+  }
+
+  private String valueOrBlank(String value) {
+    return value == null ? "" : value;
   }
 }

@@ -20,6 +20,15 @@
 # production
 **/build
 **/dist
+**/target/
+**/out/
+**/bin/
+**/obj/
+
+# Java
+**/*.class
+**/*.war
+**/*.ear
 
 # misc
 **/.DS_Store

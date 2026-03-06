@@ -7,6 +7,7 @@ export default function Home() {
         <Link href="/games">Go to Games</Link>
         <Link href="/games/analytics">Go to Game Analytics</Link>
         <Link href="/games/live">Go to Live Games</Link>
+        <Link href="/simulations">Go to Simulations</Link>
       </div>
     </main>
   );

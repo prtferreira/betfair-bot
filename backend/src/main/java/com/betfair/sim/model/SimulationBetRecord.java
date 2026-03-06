@@ -24,6 +24,7 @@ public class SimulationBetRecord {
   private Integer awayScore;
   private String inferredScore;
   private boolean inPlay;
+  private boolean balanceApplied;
   private Double profit;
 
   public SimulationBetRecord() {}
@@ -210,6 +211,14 @@ public class SimulationBetRecord {
 
   public void setInPlay(boolean inPlay) {
     this.inPlay = inPlay;
+  }
+
+  public boolean isBalanceApplied() {
+    return balanceApplied;
+  }
+
+  public void setBalanceApplied(boolean balanceApplied) {
+    this.balanceApplied = balanceApplied;
   }
 
   public Double getProfit() {

@@ -1,0 +1,194 @@
+.idmap-page {
+  min-height: 100vh;
+  padding: 1.2rem;
+  background: #eef4fa;
+  color: #1a2738;
+}
+
+.idmap-panel {
+  max-width: 1280px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #d6e1ef;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.idmap-back {
+  margin: 0 0 0.5rem;
+}
+
+.idmap-title {
+  margin: 0;
+}
+
+.idmap-subtitle {
+  margin: 0.35rem 0 0.9rem;
+  color: #53647c;
+}
+
+.idmap-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.idmap-controls input,
+.idmap-controls button {
+  border: 1px solid #b8c8df;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  background: #fff;
+}
+
+.idmap-controls button {
+  cursor: pointer;
+  background: #f3f8ff;
+}
+
+.idmap-hint {
+  margin: 0.5rem 0;
+}
+
+.idmap-hint--error {
+  color: #a41c1c;
+}
+
+.idmap-hint--ok {
+  color: #0d6b34;
+}
+
+.idmap-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+
+.idmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.idmap-col {
+  border: 1px solid #dde7f3;
+  border-radius: 10px;
+  padding: 0.65rem;
+  background: #f9fcff;
+}
+
+.idmap-col h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.idmap-search {
+  width: 100%;
+  border: 1px solid #c7d6ea;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.5rem;
+  font: inherit;
+  background: #fff;
+}
+
+.idmap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.idmap-card {
+  border: 1px solid #d2dfef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.55rem 0.6rem;
+}
+
+.idmap-card--api {
+  cursor: grab;
+}
+
+.idmap-card--drop-ready {
+  border-style: dashed;
+  background: #f4fbff;
+}
+
+.idmap-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.idmap-meta {
+  margin: 0.25rem 0 0;
+  color: #566983;
+  font-size: 0.88rem;
+}
+
+.idmap-id {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #6d7f99;
+  word-break: break-all;
+}
+
+.idmap-suggestions,
+.idmap-mapped {
+  margin-top: 1rem;
+}
+
+.idmap-suggestions h2,
+.idmap-mapped h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.idmap-card button {
+  margin-top: 0.4rem;
+  border: 1px solid #b8c8df;
+  border-radius: 7px;
+  background: #f5f8ff;
+  padding: 0.28rem 0.55rem;
+  cursor: pointer;
+}
+
+.idmap-table-wrap {
+  overflow-x: auto;
+}
+
+.idmap-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.idmap-table th,
+.idmap-table td {
+  border-bottom: 1px solid #e1e8f3;
+  padding: 0.48rem 0.42rem;
+  text-align: left;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+.idmap-table th {
+  background: #f8fbff;
+  color: #4f6079;
+}
+
+.idmap-table button {
+  border: 1px solid #c4d1e4;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}

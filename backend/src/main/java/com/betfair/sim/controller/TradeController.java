@@ -5,7 +5,13 @@ import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.BestStrategyMonitorEntry;
 import com.betfair.sim.model.AnalyticsGameEntry;
 import com.betfair.sim.model.AnalyticsGoalsEstimate;
+import com.betfair.sim.model.EndedZeroZeroEntry;
 import com.betfair.sim.model.LiveGameEntry;
+import com.betfair.sim.model.MappedLiveGameEntry;
+import com.betfair.sim.model.OverUnder15StatusResponse;
+import com.betfair.sim.model.RecentEventEntry;
+import com.betfair.sim.model.RefdataStatpalBetfairCandidatesResponse;
+import com.betfair.sim.model.RefdataStatpalBetfairMapRequest;
 import com.betfair.sim.model.FollowedGamesRequest;
 import com.betfair.sim.model.SelectedGamesRequest;
 import com.betfair.sim.model.SimulationRequest;
@@ -17,6 +23,9 @@ import java.io.UncheckedIOException;
 import com.betfair.sim.service.GameService;
 import com.betfair.sim.service.InPlayStatusEntry;
 import com.betfair.sim.service.BestStrategyService;
+import com.betfair.sim.service.RecentEventsService;
+import com.betfair.sim.service.RefdataStatpalBetfairService;
+import com.betfair.sim.service.OverUnder15StatsService;
 import com.betfair.sim.service.SimulationBetService;
 import com.betfair.sim.service.StrategyService;
 import java.time.LocalDate;
@@ -24,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,16 +47,25 @@ public class TradeController {
   private final BestStrategyService bestStrategyService;
   private final StrategyService strategyService;
   private final SimulationBetService simulationBetService;
+  private final RecentEventsService recentEventsService;
+  private final RefdataStatpalBetfairService refdataStatpalBetfairService;
+  private final OverUnder15StatsService overUnder15StatsService;
 
   public TradeController(
       GameService gameService,
       BestStrategyService bestStrategyService,
       StrategyService strategyService,
-      SimulationBetService simulationBetService) {
+      SimulationBetService simulationBetService,
+      RecentEventsService recentEventsService,
+      RefdataStatpalBetfairService refdataStatpalBetfairService,
+      OverUnder15StatsService overUnder15StatsService) {
     this.gameService = gameService;
     this.bestStrategyService = bestStrategyService;
     this.strategyService = strategyService;
     this.simulationBetService = simulationBetService;
+    this.recentEventsService = recentEventsService;
+    this.refdataStatpalBetfairService = refdataStatpalBetfairService;
+    this.overUnder15StatsService = overUnder15StatsService;
   }
 
   @GetMapping("/api/games")
@@ -99,6 +118,11 @@ public class TradeController {
   @GetMapping("/api/betfair/live-games")
   public List<LiveGameEntry> betfairLiveGames() {
     return gameService.betfairLiveGames();
+  }
+
+  @GetMapping("/api/betfair/live-games/mapped")
+  public List<MappedLiveGameEntry> betfairMappedLiveGames() {
+    return gameService.betfairMappedLiveGames();
   }
 
   @GetMapping("/api/strategies")
@@ -235,6 +259,69 @@ public class TradeController {
     return gameService.analyticsGoalsForGame(date, gameKey);
   }
 
+  @GetMapping("/api/betfair/analytics/ended-zero-zero")
+  public List<EndedZeroZeroEntry> endedZeroZero(
+      @RequestParam(name = "date", required = false) String date) {
+    return gameService.endedZeroZeroByDate(date);
+  }
+
+  @GetMapping("/api/betfair/recent-events")
+  public List<RecentEventEntry> recentEvents(
+      @RequestParam(name = "date", required = false) String date) {
+    return recentEventsService.loadByDate(date);
+  }
+
+  @GetMapping("/api/refdata/statpal-betfair/candidates")
+  public RefdataStatpalBetfairCandidatesResponse refdataStatpalBetfairCandidates(
+      @RequestParam(name = "date", required = false) String date) {
+    return refdataStatpalBetfairService.candidates(date);
+  }
+
+  @PostMapping("/api/refdata/statpal-betfair/auto-map")
+  public Map<String, Object> refdataStatpalBetfairAutoMap(
+      @RequestParam(name = "date", required = false) String date) {
+    int mappedCount = refdataStatpalBetfairService.autoMapByHomeAwayNames(date);
+    return Map.of("status", "OK", "mappedCount", mappedCount);
+  }
+
+  @PostMapping("/api/refdata/statpal-betfair/map")
+  public Map<String, Object> refdataStatpalBetfairMap(@RequestBody RefdataStatpalBetfairMapRequest request) {
+    if (request == null
+        || request.getApiMatchId() == null
+        || request.getApiMatchId().isBlank()
+        || request.getBetfairEventId() == null
+        || request.getBetfairEventId().isBlank()) {
+      return Map.of("status", "FAILED", "message", "apiMatchId and betfairEventId are required");
+    }
+    refdataStatpalBetfairService.saveMapping(
+        request.getDate(),
+        request.getApiMatchId(),
+        request.getBetfairEventId(),
+        request.getSource(),
+        request.getConfidenceScore());
+    return Map.of("status", "OK");
+  }
+
+  @DeleteMapping("/api/refdata/statpal-betfair/map")
+  public Map<String, Object> refdataStatpalBetfairDelete(
+      @RequestParam(name = "date", required = false) String date,
+      @RequestParam(name = "apiMatchId", required = false) String apiMatchId,
+      @RequestParam(name = "betfairEventId", required = false) String betfairEventId) {
+    if ((apiMatchId == null || apiMatchId.isBlank())
+        && (betfairEventId == null || betfairEventId.isBlank())) {
+      return Map.of("status", "FAILED", "message", "Provide apiMatchId or betfairEventId");
+    }
+    refdataStatpalBetfairService.deleteMapping(date, apiMatchId, betfairEventId);
+    return Map.of("status", "OK");
+  }
+
+  @DeleteMapping("/api/refdata/statpal-betfair/map/all")
+  public Map<String, Object> refdataStatpalBetfairDeleteAll(
+      @RequestParam(name = "date", required = false) String date) {
+    int deleted = refdataStatpalBetfairService.deleteAllMappings(date);
+    return Map.of("status", "OK", "deletedCount", deleted);
+  }
+
   @PostMapping("/api/strategies/simulate")
   public List<SimulationResult> simulate(@RequestBody SimulationRequest request) {
     String resolvedDate =
@@ -262,5 +349,10 @@ public class TradeController {
   @GetMapping("/api/sim/bets/status")
   public SimulationBetStatusResponse simulationBetStatus() {
     return simulationBetService.getStatus();
+  }
+
+  @GetMapping("/api/sim/overunder15/status")
+  public OverUnder15StatusResponse overUnder15Status() {
+    return overUnder15StatsService.getStatus();
   }
 }

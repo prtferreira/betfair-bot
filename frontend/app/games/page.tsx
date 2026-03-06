@@ -762,6 +762,15 @@ export default function GamesPage() {
           <Link href="/games/analytics" className="market-link">
             Go to Game Analytics
           </Link>
+          <Link href="/games/ended-00" className="market-link">
+            Ended 0-0
+          </Link>
+          <Link href="/games/recent-stats" className="market-link">
+            Recent Games Stats
+          </Link>
+          <Link href="/games/id-mapping" className="market-link">
+            ID Mapping
+          </Link>
           <Link href="/games/live" className="market-link">
             Live Games
           </Link>

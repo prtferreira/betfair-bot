@@ -1,0 +1,37 @@
+2026-02-25 | Unisport FC de Bafang vs Gazelle de Garoua | minute=90 | Unisport FC de Bafang=1.13, Draw=7.8, Gazelle de Garoua=50.0
+2026-02-25 | MSK Zilina U19 vs Club Brugge U19 | minute=71 | MSK Zilina U19=28.0, Draw=5.9, Club Brugge U19=1.23
+2026-02-25 | Zeljeznicar vs Sloga Doboj | minute=71 | Zeljeznicar=2.8, Draw=1.81, Sloga Doboj=8.6
+2026-02-25 | FK Sutjeska vs OFK Petrovac | minute=71 | FK Sutjeska=21.0, Draw=4.4, OFK Petrovac=1.34
+2026-02-25 | Real Madrid U19 vs Chelsea U19 | minute=71 | Real Madrid U19=1.4, Draw=4.5, Chelsea U19=13.0
+2026-02-25 | SL Benfica Lisbon U19 vs AZ Alkmaar U19 | minute=71 | SL Benfica Lisbon U19=-, Draw=100.0, AZ Alkmaar U19=5.0
+2026-02-25 | Atletico Madrid U19 vs Maccabi Haifa U19 | minute=71 | Atletico Madrid U19=1.12, Draw=9.2, Maccabi Haifa U19=50.0
+2026-02-25 | Villarreal U19 vs KP Legia Warszawa U19 | minute=71 | Villarreal U19=1.05, Draw=19.0, KP Legia Warszawa U19=70.0
+2026-02-25 | Fauve Azur Elite vs Stade Renard | minute=71 | Fauve Azur Elite=1.35, Draw=4.3, Stade Renard=11.0
+2026-02-25 | Sporting Braga U23 vs SC Uniao Torreense U23 | minute=69 | Sporting Braga U23=4.1, Draw=2.0, SC Uniao Torreense U23=3.55
+2026-02-25 | Rivers United FC vs Barau FC | minute=68 | Rivers United FC=1.89, Draw=2.42, Barau FC=13.5
+2026-02-25 | Unisport FC de Bafang vs Gazelle de Garoua | minute=90 | Unisport FC de Bafang=1.13, Draw=8.0, Gazelle de Garoua=55.0
+2026-02-25 | MSK Zilina U19 vs Club Brugge U19 | minute=72 | MSK Zilina U19=30.0, Draw=5.9, Club Brugge U19=1.22
+2026-02-25 | Zeljeznicar vs Sloga Doboj | minute=71 | Zeljeznicar=2.86, Draw=1.79, Sloga Doboj=8.6
+2026-02-25 | FK Sutjeska vs OFK Petrovac | minute=71 | FK Sutjeska=24.0, Draw=4.3, OFK Petrovac=1.37
+2026-02-25 | SL Benfica Lisbon U19 vs AZ Alkmaar U19 | minute=71 | SL Benfica Lisbon U19=-, Draw=100.0, AZ Alkmaar U19=42.0
+2026-02-25 | Atletico Madrid U19 vs Maccabi Haifa U19 | minute=71 | Atletico Madrid U19=1.11, Draw=10.0, Maccabi Haifa U19=55.0
+2026-02-25 | Villarreal U19 vs KP Legia Warszawa U19 | minute=71 | Villarreal U19=1.05, Draw=17.5, KP Legia Warszawa U19=44.0
+2026-02-25 | Fauve Azur Elite vs Stade Renard | minute=71 | Fauve Azur Elite=1.34, Draw=4.2, Stade Renard=18.5
+2026-02-25 | Sporting Braga U23 vs SC Uniao Torreense U23 | minute=69 | Sporting Braga U23=4.2, Draw=2.0, SC Uniao Torreense U23=3.55
+2026-02-25 | Rivers United FC vs Barau FC | minute=69 | Rivers United FC=1.89, Draw=2.46, Barau FC=13.5
+2026-02-25 | Kristiansund vs Sarpsborg | minute=61 | Kristiansund=6.8, Draw=3.95, Sarpsborg=1.41
+2026-02-25 | Kristiansund vs Sarpsborg | minute=62 | Kristiansund=6.8, Draw=3.95, Sarpsborg=1.41
+2026-02-25 | Dodoma FC vs Simba | minute=86 | Dodoma FC=11.5, Draw=1.73, Simba=2.72
+2026-02-25 | CD Castellon II vs Barcelona B | minute=71 | CD Castellon II=1.93, Draw=3.2, Barcelona B=5.1
+2026-02-25 | Dodoma FC vs Simba | minute=87 | Dodoma FC=11.5, Draw=1.73, Simba=2.72
+2026-02-25 | CD Castellon II vs Barcelona B | minute=72 | CD Castellon II=1.88, Draw=3.2, Barcelona B=5.0
+2026-02-25 | Dodoma FC vs Simba | minute=90 | Dodoma FC=34.0, Draw=1.05, Simba=15.5
+2026-02-25 | CD Castellon II vs Barcelona B | minute=90 | CD Castellon II=9.2, Draw=1.35, Barcelona B=5.3
+2026-02-25 | Antigua & Barbuda U20 vs Virgin Islands U20 | minute=65 | Antigua & Barbuda U20=1.01, Draw=38.0, Virgin Islands U20=190.0
+2026-02-25 | SC Villa vs Bul FC | minute=65 | SC Villa=10.5, Draw=3.25, Bul FC=1.58
+2026-02-25 | CD Castellon II vs Barcelona B | minute=90 | CD Castellon II=8.0, Draw=1.41, Barcelona B=4.9
+2026-02-25 | Antigua & Barbuda U20 vs Virgin Islands U20 | minute=69 | Antigua & Barbuda U20=1.01, Draw=48.0, Virgin Islands U20=240.0
+2026-02-25 | SC Villa vs Bul FC | minute=69 | SC Villa=3.25, Draw=1.63, Bul FC=5.9
+2026-02-25 | Al Wahda (Abu Dhabi) vs Ajman Club | minute=60 | Al Wahda (Abu Dhabi)=2.44, Draw=2.42, Ajman Club=5.0
+2026-02-25 | Al Wasl vs Al Ahli (UAE) | minute=60 | Al Wasl=1.66, Draw=3.55, Al Ahli (UAE)=7.4
+2026-02-25 | Sarajevo vs FK Velez Mostar | minute=60 | Sarajevo=2.64, Draw=2.06, FK Velez Mostar=5.9

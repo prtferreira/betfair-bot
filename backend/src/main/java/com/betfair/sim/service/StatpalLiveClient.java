@@ -31,7 +31,7 @@ public class StatpalLiveClient {
       RestTemplateBuilder restTemplateBuilder,
       ObjectMapper objectMapper,
       @Value("${statpal.live.base-url:https://statpal.io/api/v2/soccer/matches/live}") String baseUrl,
-      @Value("${statpal.access-key:b5b07a3f-b019-4a18-8969-6045169feda9}") String accessKey) {
+      @Value("${statpal.access-key:c6a0d160-93fa-467e-9f5b-0d59e78a14ca}") String accessKey) {
     this.restTemplate = restTemplateBuilder.build();
     this.objectMapper = objectMapper;
     this.baseUrl = baseUrl;
@@ -60,11 +60,15 @@ public class StatpalLiveClient {
       }
       JsonNode root = objectMapper.readTree(response);
       List<LiveMatch> matches = new ArrayList<>();
-      JsonNode liveMatchesNode = root.path("live_matches");
-      if (!liveMatchesNode.isMissingNode() && !liveMatchesNode.isNull()) {
-        collectMatches(liveMatchesNode, matches);
+      JsonNode leagues = root.path("live_matches").path("league");
+      if (leagues.isArray()) {
+        for (JsonNode leagueNode : leagues) {
+          String leagueName = leagueNode.path("name").asText("").trim();
+          JsonNode matchNode = leagueNode.path("match");
+          collectMatches(matchNode, leagueName, matches);
+        }
       } else {
-        collectMatches(root, matches);
+        collectMatches(root.path("live_matches"), "", matches);
       }
       LOGGER.info("[STATPAL_DEBUG] fetched live matches count={} httpStatus={}", matches.size(), entity.getStatusCode().value());
       if (!matches.isEmpty()) {
@@ -93,37 +97,30 @@ public class StatpalLiveClient {
     }
   }
 
-  private void collectMatches(JsonNode node, List<LiveMatch> target) {
+  private void collectMatches(JsonNode node, String leagueName, List<LiveMatch> target) {
     if (node == null || node.isNull() || node.isMissingNode()) {
       return;
     }
     if (node.isArray()) {
       for (JsonNode child : node) {
-        collectMatches(child, target);
+        collectMatches(child, leagueName, target);
       }
       return;
     }
     if (!node.isObject()) {
       return;
     }
-
-    JsonNode matchArray = node.path("match");
-    if (matchArray.isArray()) {
-      for (JsonNode match : matchArray) {
-        LiveMatch parsed = parseMatch(match);
-        if (parsed != null) {
-          target.add(parsed);
-        }
-      }
+    LiveMatch parsed = parseMatch(node, leagueName);
+    if (parsed != null) {
+      target.add(parsed);
     }
-
-    node.fields().forEachRemaining(entry -> collectMatches(entry.getValue(), target));
   }
 
-  private LiveMatch parseMatch(JsonNode match) {
+  private LiveMatch parseMatch(JsonNode match, String leagueName) {
     if (match == null || !match.isObject()) {
       return null;
     }
+    String mainId = match.path("main_id").asText("").trim();
     String homeTeam = match.path("home").path("name").asText("").trim();
     String awayTeam = match.path("away").path("name").asText("").trim();
     if (homeTeam.isBlank() || awayTeam.isBlank()) {
@@ -134,8 +131,17 @@ public class StatpalLiveClient {
     Integer awayGoals = parseInt(match.path("away").path("goals").asText(""));
     String status = match.path("status").asText("").trim();
     String minute = extractMinute(match);
+    if (minute.isBlank() && "HT".equalsIgnoreCase(status)) {
+      minute = "HT";
+    }
+    boolean hasGoalEvent = hasGoalEvent(match.path("events").path("event"));
+    boolean goalScored =
+        (homeGoals != null && homeGoals > 0)
+            || (awayGoals != null && awayGoals > 0)
+            || hasGoalEvent;
 
-    return new LiveMatch(homeTeam, awayTeam, homeGoals, awayGoals, status, minute);
+    return new LiveMatch(
+        mainId, leagueName, homeTeam, awayTeam, homeGoals, awayGoals, status, minute, goalScored);
   }
 
   private String extractMinute(JsonNode match) {
@@ -144,33 +150,42 @@ public class StatpalLiveClient {
       String inj = match.path("inj_minute").asText("").trim();
       return inj.isBlank() ? minute + "'" : minute + "+" + inj + "'";
     }
+    String status = match.path("status").asText("").trim();
+    if (isLiveMinuteStatus(status)) {
+      return status + "'";
+    }
     String inj = match.path("inj_minute").asText("").trim();
     if (!inj.isBlank()) {
       return inj + "'";
     }
-    int maxEventMinute = findMaxEventMinute(match.path("events").path("event"));
-    if (maxEventMinute > 0) {
-      return maxEventMinute + "'";
-    }
     return "";
   }
 
-  private int findMaxEventMinute(JsonNode events) {
+  private boolean hasGoalEvent(JsonNode events) {
     if (events == null || events.isNull() || events.isMissingNode()) {
-      return 0;
+      return false;
     }
-    int max = 0;
     if (events.isArray()) {
       for (JsonNode event : events) {
-        int parsed = parseInt(event.path("minute").asText(""), 0);
-        if (parsed > max) {
-          max = parsed;
+        if (isGoalType(event.path("type").asText(""))) {
+          return true;
         }
       }
-      return max;
+      return false;
     }
-    int parsed = parseInt(events.path("minute").asText(""), 0);
-    return Math.max(0, parsed);
+    return isGoalType(events.path("type").asText(""));
+  }
+
+  private boolean isGoalType(String value) {
+    String type = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    return "goal".equals(type) || "owngoal".equals(type);
+  }
+
+  private boolean isLiveMinuteStatus(String status) {
+    if (status == null || status.isBlank()) {
+      return false;
+    }
+    return status.trim().matches("^\\d{1,3}(\\+\\d{1,2})?$");
   }
 
   private Integer parseInt(String value) {
@@ -202,26 +217,43 @@ public class StatpalLiveClient {
   }
 
   public static final class LiveMatch {
+    private final String mainId;
+    private final String league;
     private final String homeTeam;
     private final String awayTeam;
     private final Integer homeGoals;
     private final Integer awayGoals;
     private final String status;
     private final String minute;
+    private final boolean goalScored;
 
     private LiveMatch(
+        String mainId,
+        String league,
         String homeTeam,
         String awayTeam,
         Integer homeGoals,
         Integer awayGoals,
         String status,
-        String minute) {
+        String minute,
+        boolean goalScored) {
+      this.mainId = mainId;
+      this.league = league;
       this.homeTeam = homeTeam;
       this.awayTeam = awayTeam;
       this.homeGoals = homeGoals;
       this.awayGoals = awayGoals;
       this.status = status;
       this.minute = minute;
+      this.goalScored = goalScored;
+    }
+
+    public String getMainId() {
+      return mainId;
+    }
+
+    public String getLeague() {
+      return league;
     }
 
     public String getHomeTeam() {
@@ -246,6 +278,10 @@ public class StatpalLiveClient {
 
     public String getMinute() {
       return minute;
+    }
+
+    public boolean isGoalScored() {
+      return goalScored;
     }
   }
 }

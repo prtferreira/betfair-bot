@@ -4,7 +4,9 @@ import com.betfair.sim.model.Game;
 import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.AnalyticsGameEntry;
 import com.betfair.sim.model.AnalyticsGoalsEstimate;
+import com.betfair.sim.model.EndedZeroZeroEntry;
 import com.betfair.sim.model.LiveGameEntry;
+import com.betfair.sim.model.MappedLiveGameEntry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,6 +35,7 @@ import java.text.Normalizer;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -61,15 +65,23 @@ public class GameService {
 
   private final BetfairApiClient betfairApiClient;
   private final StatpalLiveClient statpalLiveClient;
+  private final StatpalOddsLiveClient statpalOddsLiveClient;
+  private final JdbcTemplate jdbcTemplate;
   private final Path followedGamesDir;
   private final Map<String, LiveTracker> liveTrackers = new ConcurrentHashMap<>();
+  private volatile Instant mappedLiveCacheExpiresAt = Instant.EPOCH;
+  private volatile List<MappedLiveGameEntry> mappedLiveCache = List.of();
 
   public GameService(
       BetfairApiClient betfairApiClient,
       StatpalLiveClient statpalLiveClient,
+      StatpalOddsLiveClient statpalOddsLiveClient,
+      JdbcTemplate jdbcTemplate,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
     this.statpalLiveClient = statpalLiveClient;
+    this.statpalOddsLiveClient = statpalOddsLiveClient;
+    this.jdbcTemplate = jdbcTemplate;
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
   }
 
@@ -151,97 +163,77 @@ public class GameService {
       return List.of();
     }
 
-    Map<String, Game> candidatesByMarketId = new LinkedHashMap<>();
-    List<Game> primaryInPlay = betfairApiClient.listInPlayFootballMatchOdds();
-    for (Game game : primaryInPlay) {
-      if (game == null) {
-        continue;
-      }
-      String marketId = valueOrEmpty(game.getMarketId());
-      if (!marketId.isBlank()) {
-        candidatesByMarketId.put(marketId, game);
-      }
-    }
-
-    if (candidatesByMarketId.isEmpty()) {
-      for (Game game : betfairApiClient.listMatchOddsForDate(LocalDate.now(ZoneOffset.UTC))) {
-        if (game == null) {
-          continue;
-        }
-        if (!Boolean.TRUE.equals(game.getInPlay())) {
-          continue;
-        }
-        String marketId = valueOrEmpty(game.getMarketId());
-        if (!marketId.isBlank()) {
-          candidatesByMarketId.put(marketId, game);
-        }
-      }
-    }
-    List<Game> candidates = new ArrayList<>(candidatesByMarketId.values());
-    if (candidates.isEmpty()) {
+    List<Game> betfairGames = betfairApiClient.listInPlayFootballMatchOdds();
+    if (betfairGames.isEmpty()) {
       return List.of();
     }
-    List<String> candidateMarketIds =
-        candidates.stream()
-            .map(Game::getMarketId)
-            .filter(Objects::nonNull)
-            .filter(id -> !id.isBlank())
-            .distinct()
-            .toList();
-    Map<String, BetfairApiClient.MarketOutcome> outcomesByMarket =
-        candidateMarketIds.isEmpty()
-            ? Map.of()
-            : betfairApiClient.getMarketOutcomes(candidateMarketIds);
-    Map<String, BetfairApiClient.InferredScore> inferredByMarket =
-        candidateMarketIds.isEmpty()
-            ? Map.of()
-            : betfairApiClient.inferScoresFromCorrectScoreMarkets(candidateMarketIds);
+
+    List<StatpalLiveClient.LiveMatch> statpalMatches = statpalLiveClient.fetchLiveMatches();
+    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    Map<String, String> statpalMainIdByBetfairEventId = loadStatpalMainIdByBetfairEventId(today);
+    Map<String, StatpalLiveClient.LiveMatch> statpalByMainId = new HashMap<>();
+    List<StatpalLiveClient.LiveMatch> statpalInPlayMatches = new ArrayList<>();
+    for (StatpalLiveClient.LiveMatch match : statpalMatches) {
+      if (match == null) {
+        continue;
+      }
+      String mainId = valueOrEmpty(match.getMainId()).trim();
+      if (!mainId.isBlank()) {
+        statpalByMainId.putIfAbsent(mainId, match);
+      }
+      if (isStatpalInPlay(match)) {
+        statpalInPlayMatches.add(match);
+      }
+    }
 
     Instant now = Instant.now();
     List<LiveGameEntry> entries = new ArrayList<>();
-    for (Game game : candidates) {
-      if (game == null) {
+    for (Game game : betfairGames) {
+      if (game == null || valueOrEmpty(game.getId()).isBlank()) {
         continue;
       }
-      String trackerKey = (valueOrEmpty(game.getMarketId()) + "|" + valueOrEmpty(game.getId())).trim();
-      boolean inPlay = Boolean.TRUE.equals(game.getInPlay());
-      boolean trackedBefore = liveTrackers.containsKey(trackerKey);
-      if (!inPlay && !trackedBefore) {
-        continue;
+      String betfairEventId = valueOrEmpty(game.getId()).trim();
+      String statpalMainId = statpalMainIdByBetfairEventId.getOrDefault(betfairEventId, "");
+      StatpalLiveClient.LiveMatch statpal =
+          statpalMainId.isBlank() ? null : statpalByMainId.get(statpalMainId);
+      if (statpal != null && !isStatpalInPlay(statpal)) {
+        statpal = null;
       }
+      if (statpal == null && !statpalInPlayMatches.isEmpty()) {
+        statpal = findBestStatpalMatch(game, statpalInPlayMatches);
+      }
+      if (statpal != null && statpalMainId.isBlank()) {
+        statpalMainId = valueOrEmpty(statpal.getMainId()).trim();
+      }
+
       LiveGameEntry entry = new LiveGameEntry();
-      entry.setEventId(valueOrEmpty(game.getId()));
+      entry.setStatpalMatchId(statpalMainId);
+      entry.setEventId(valueOrEmpty(betfairEventId));
       entry.setMarketId(valueOrEmpty(game.getMarketId()));
-      entry.setLeague(valueOrEmpty(game.getLeague()));
+      entry.setLeague(statpal == null ? valueOrEmpty(game.getLeague()) : valueOrEmpty(statpal.getLeague()));
       entry.setHomeTeam(valueOrEmpty(game.getHomeTeam()));
       entry.setAwayTeam(valueOrEmpty(game.getAwayTeam()));
       entry.setStartTime(valueOrEmpty(game.getStartTime()));
       entry.setMarketStatus(valueOrEmpty(game.getMarketStatus()));
-      entry.setInPlay(inPlay);
+      entry.setInPlay(true);
+      entry.setMappedToBetfair(true);
       entry.setHomeOdds(game.getHomeOdds());
       entry.setDrawOdds(game.getDrawOdds());
       entry.setAwayOdds(game.getAwayOdds());
-      entry.setScore("-");
+      String score = statpal == null ? "" : toScore(statpal.getHomeGoals(), statpal.getAwayGoals());
+      entry.setScore(score.isBlank() ? "-" : score);
+      if (statpal != null) {
+        entry.setMinute(normalizeMinuteText(statpal.getMinute(), statpal.getStatus()));
+        entry.setMinuteSource("statpal");
+        entry.setGoalScored(statpal.isGoalScored());
+      } else {
+        entry.setMinute(inferMinuteFromKickoff(game.getStartTime(), now));
+        entry.setMinuteSource("betfair");
+        entry.setGoalScored(false);
+      }
       entry.setHighlight("");
       entry.setZeroZeroAfterHt(false);
 
-      BetfairApiClient.MarketOutcome outcome = outcomesByMarket.get(entry.getMarketId());
-      if (outcome != null && outcome.getHomeScore() != null && outcome.getAwayScore() != null) {
-        entry.setScore(outcome.getHomeScore() + "-" + outcome.getAwayScore());
-      }
-      if ("-".equals(entry.getScore())) {
-        BetfairApiClient.InferredScore inferred = inferredByMarket.get(entry.getMarketId());
-        if (inferred != null
-            && inferred.getHomeScore() != null
-            && inferred.getAwayScore() != null) {
-          entry.setScore(inferred.getHomeScore() + "-" + inferred.getAwayScore());
-        }
-      }
-      if (entry.getMinute() == null || entry.getMinute().isBlank()) {
-        String inferred = inferMinuteFromKickoff(game.getStartTime(), now);
-        entry.setMinute(inferred);
-        entry.setMinuteSource("kickoff-estimate");
-      }
       if ("-".equals(entry.getScore())) {
         String inferredFromOu05 = inferScoreFromOverUnder05(game, entry.getMinute());
         if (!inferredFromOu05.isBlank()) {
@@ -252,8 +244,61 @@ public class GameService {
       entries.add(entry);
     }
 
-    entries.sort(Comparator.comparing(LiveGameEntry::getStartTime, String::compareTo));
+    entries.sort(
+        Comparator.comparing(
+                (LiveGameEntry e) -> parseLiveMinute(e.getMinute()),
+                Comparator.reverseOrder())
+            .thenComparing(
+                e -> (valueOrEmpty(e.getHomeTeam()) + " vs " + valueOrEmpty(e.getAwayTeam()))));
     return entries;
+  }
+
+  public List<MappedLiveGameEntry> betfairMappedLiveGames() {
+    Instant now = Instant.now();
+    List<MappedLiveGameEntry> cached = mappedLiveCache;
+    if (cached != null && now.isBefore(mappedLiveCacheExpiresAt)) {
+      return cached;
+    }
+
+    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    List<Map<String, Object>> rows =
+        jdbcTemplate.queryForList(
+            "SELECT statpal_main_id, betfair_event_id, statpal_home_team, statpal_away_team "
+                + "FROM refdata_statpal_betfair "
+                + "WHERE match_date = ? "
+                + "ORDER BY statpal_home_team, statpal_away_team",
+            today);
+    List<MappedLiveGameEntry> entries = new ArrayList<>();
+    for (Map<String, Object> row : rows) {
+      String matchId = valueOrEmpty((String) row.get("statpal_main_id")).trim();
+      String eventId = valueOrEmpty((String) row.get("betfair_event_id")).trim();
+      if (matchId.isBlank() || eventId.isBlank()) {
+        continue;
+      }
+      String mappedHome = valueOrEmpty((String) row.get("statpal_home_team")).trim();
+      String mappedAway = valueOrEmpty((String) row.get("statpal_away_team")).trim();
+      StatpalOddsLiveClient.MatchSnapshot snapshot = statpalOddsLiveClient.fetchByMatchId(matchId);
+
+      MappedLiveGameEntry entry = new MappedLiveGameEntry();
+      entry.setStatpalMatchId(matchId);
+      entry.setBetfairEventId(eventId);
+      entry.setHomeTeam(snapshot.getHomeTeam().isBlank() ? mappedHome : snapshot.getHomeTeam());
+      entry.setAwayTeam(snapshot.getAwayTeam().isBlank() ? mappedAway : snapshot.getAwayTeam());
+      entry.setStatus(snapshot.getStatus());
+      String minute = snapshot.getMinute();
+      if (!minute.isBlank() && !minute.endsWith("'") && minute.matches("^\\d{1,3}(\\+\\d{1,2})?$")) {
+        minute = minute + "'";
+      }
+      entry.setMinute(minute);
+      entry.setScore(snapshot.getScore());
+      entry.setSource("statpal-odds-live");
+      entries.add(entry);
+    }
+
+    List<MappedLiveGameEntry> snapshot = List.copyOf(entries);
+    mappedLiveCache = snapshot;
+    mappedLiveCacheExpiresAt = now.plus(Duration.ofSeconds(60));
+    return snapshot;
   }
 
   public String betfairFootballEventsRaw() {
@@ -422,6 +467,59 @@ public class GameService {
       throw new UncheckedIOException("Failed to read analytics goal files", ex);
     }
     return estimateGoalsFromFiles(gameKey, files);
+  }
+
+  public List<EndedZeroZeroEntry> endedZeroZeroByDate(String date) {
+    String resolvedDate =
+        date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC).toString() : date;
+    LocalDate localDate = LocalDate.parse(resolvedDate);
+    String folder = localDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+    Path inputDir = followedGamesDir.resolve(folder);
+    if (!Files.exists(inputDir) || !Files.isDirectory(inputDir)) {
+      return List.of();
+    }
+
+    List<EndedZeroZeroEntry> entries = new ArrayList<>();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(inputDir, "*_CORRECT_SCORE.txt")) {
+      for (Path correctScoreFile : stream) {
+        String fileName = correctScoreFile.getFileName().toString();
+        ParsedAnalyticsFile parsed = parseAnalyticsFileName(fileName, folder);
+        if (parsed == null || !"CORRECT_SCORE".equals(parsed.marketType())) {
+          continue;
+        }
+
+        ZeroZeroSummary zeroZeroSummary = summarizeZeroZeroFromCorrectScore(correctScoreFile);
+        if (zeroZeroSummary.latest() == null) {
+          continue;
+        }
+
+        Path overUnder05File =
+            inputDir.resolve(parsed.gameKey() + "_" + folder + "_OVER_UNDER_05.txt");
+        if (!Files.exists(overUnder05File)) {
+          continue;
+        }
+        OverUnderSummary overUnderSummary = summarizeOverUnder05(overUnder05File);
+        if (!isConfirmedEndedZeroZero(zeroZeroSummary.latest(), overUnderSummary)) {
+          continue;
+        }
+
+        entries.add(
+            new EndedZeroZeroEntry(
+                parsed.gameKey(),
+                parsed.gameKey().replace('_', ' ').trim(),
+                resolvedDate,
+                zeroZeroSummary.preKickoff() == null ? null : zeroZeroSummary.preKickoff().backOdds(),
+                zeroZeroSummary.latest().backOdds(),
+                overUnderSummary.underQuote() == null ? null : overUnderSummary.underQuote().backOdds(),
+                overUnderSummary.overQuote() == null ? null : overUnderSummary.overQuote().backOdds()));
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to read ended 0-0 analytics files", ex);
+    }
+
+    entries.sort(
+        Comparator.comparing(EndedZeroZeroEntry::getDisplayName, String::compareToIgnoreCase));
+    return entries;
   }
 
   public List<InPlayStatusEntry> loadBalancedGameStatuses(String date) {
@@ -636,6 +734,119 @@ public class GameService {
     }
   }
 
+  private ZeroZeroSummary summarizeZeroZeroFromCorrectScore(Path file) {
+    Quote preKickoff = null;
+    Quote latest = null;
+    try {
+      List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+      for (String line : lines) {
+        if (line == null || line.isBlank() || line.startsWith("timestamp")) {
+          continue;
+        }
+        String[] parts = line.split(",");
+        if (parts.length < 9) {
+          continue;
+        }
+        String runnerName = parts[6].trim();
+        if (!isZeroZeroRunner(runnerName)) {
+          continue;
+        }
+        double backOdds = parseOdds(parts[7]);
+        if (backOdds <= 0d) {
+          continue;
+        }
+        int minute = (int) parseMinute(parts[1]);
+        String timestamp = parts[0].trim();
+        String marketStatus = parts[4].trim().toUpperCase();
+        Quote quote = new Quote(minute, timestamp, backOdds, marketStatus);
+
+        if (minute <= 0 && (preKickoff == null || quote.isAfter(preKickoff))) {
+          preKickoff = quote;
+        }
+        if (latest == null || quote.isAfter(latest)) {
+          latest = quote;
+        }
+      }
+    } catch (IOException ex) {
+      return new ZeroZeroSummary(null, null);
+    }
+    return new ZeroZeroSummary(preKickoff, latest);
+  }
+
+  private OverUnderSummary summarizeOverUnder05(Path file) {
+    Quote overQuote = null;
+    Quote underQuote = null;
+    try {
+      List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+      for (String line : lines) {
+        if (line == null || line.isBlank() || line.startsWith("timestamp")) {
+          continue;
+        }
+        String[] parts = line.split(",");
+        if (parts.length < 9) {
+          continue;
+        }
+        String runnerName = parts[6].trim().toUpperCase(Locale.ROOT);
+        double backOdds = parseOdds(parts[7]);
+        if (backOdds <= 0d) {
+          continue;
+        }
+        int minute = (int) parseMinute(parts[1]);
+        String timestamp = parts[0].trim();
+        String marketStatus = parts[4].trim().toUpperCase();
+        Quote quote = new Quote(minute, timestamp, backOdds, marketStatus);
+        if (runnerName.startsWith("OVER ")) {
+          if (overQuote == null || quote.isAfter(overQuote)) {
+            overQuote = quote;
+          }
+        } else if (runnerName.startsWith("UNDER ")) {
+          if (underQuote == null || quote.isAfter(underQuote)) {
+            underQuote = quote;
+          }
+        }
+      }
+    } catch (IOException ex) {
+      return new OverUnderSummary(null, null);
+    }
+    return new OverUnderSummary(overQuote, underQuote);
+  }
+
+  private boolean isConfirmedEndedZeroZero(Quote latestZeroZero, OverUnderSummary overUnderSummary) {
+    if (latestZeroZero == null || overUnderSummary == null || overUnderSummary.underQuote() == null) {
+      return false;
+    }
+    if (!isEndOfGameSnapshot(latestZeroZero) || !isEndOfGameSnapshot(overUnderSummary.underQuote())) {
+      return false;
+    }
+    if (latestZeroZero.backOdds() > 1.2d || overUnderSummary.underQuote().backOdds() > 1.2d) {
+      return false;
+    }
+    Quote overQuote = overUnderSummary.overQuote();
+    if (overQuote == null) {
+      return true;
+    }
+    return overQuote.backOdds() >= 4.0d
+        || overQuote.backOdds() > (overUnderSummary.underQuote().backOdds() * 2.0d);
+  }
+
+  private boolean isEndOfGameSnapshot(Quote quote) {
+    if (quote == null) {
+      return false;
+    }
+    if ("CLOSED".equalsIgnoreCase(quote.marketStatus())) {
+      return true;
+    }
+    return quote.minute() >= 89;
+  }
+
+  private boolean isZeroZeroRunner(String runnerName) {
+    if (runnerName == null) {
+      return false;
+    }
+    String normalized = runnerName.trim().replaceAll("\\s+", "");
+    return "0-0".equals(normalized);
+  }
+
   private double parseOdds(String value) {
     try {
       return Double.parseDouble(value == null ? "0" : value.trim());
@@ -803,11 +1014,20 @@ public class GameService {
       return minuteText.endsWith("'") ? minuteText : minuteText + "'";
     }
     String statusText = status == null ? "" : status.trim().toUpperCase();
+    if (statusText.matches("^\\d{1,3}(\\+\\d{1,2})?$")) {
+      return statusText + "'";
+    }
     if ("HT".equals(statusText)) {
       return "HT";
     }
     if ("FT".equals(statusText) || "AET".equals(statusText) || "PEN".equals(statusText)) {
       return "Finished";
+    }
+    if ("1H".equals(statusText)
+        || "2H".equals(statusText)
+        || statusText.startsWith("ET")
+        || statusText.contains("HALF")) {
+      return statusText;
     }
     return "";
   }
@@ -989,6 +1209,55 @@ public class GameService {
     return value == null ? "-" : String.valueOf(value);
   }
 
+  private String toScore(Integer homeGoals, Integer awayGoals) {
+    if (homeGoals == null || awayGoals == null) {
+      return "";
+    }
+    return homeGoals + "-" + awayGoals;
+  }
+
+  private boolean isStatpalInPlay(StatpalLiveClient.LiveMatch match) {
+    if (match == null) {
+      return false;
+    }
+    String status = valueOrEmpty(match.getStatus()).trim().toUpperCase(Locale.ROOT);
+    if ("HT".equals(status)) {
+      return true;
+    }
+    if (status.matches("^\\d{1,3}(\\+\\d{1,2})?$")) {
+      return true;
+    }
+    if (status.contains("HALF")) {
+      return true;
+    }
+    if ("1H".equals(status) || "2H".equals(status)) {
+      return true;
+    }
+    if (status.startsWith("ET")) {
+      return true;
+    }
+    return false;
+  }
+
+  private Map<String, String> loadStatpalMainIdByBetfairEventId(LocalDate date) {
+    if (date == null) {
+      return Map.of();
+    }
+    List<Map<String, Object>> rows =
+        jdbcTemplate.queryForList(
+            "SELECT statpal_main_id, betfair_event_id FROM refdata_statpal_betfair WHERE match_date = ?",
+            date);
+    Map<String, String> map = new HashMap<>();
+    for (Map<String, Object> row : rows) {
+      String statpalMainId = valueOrEmpty((String) row.get("statpal_main_id")).trim();
+      String betfairEventId = valueOrEmpty((String) row.get("betfair_event_id")).trim();
+      if (!statpalMainId.isBlank() && !betfairEventId.isBlank()) {
+        map.put(betfairEventId, statpalMainId);
+      }
+    }
+    return map;
+  }
+
   private synchronized void appendLine(Path file, String line) {
     try {
       Files.createDirectories(file.getParent());
@@ -1078,15 +1347,29 @@ public class GameService {
     private final long minute;
     private final String timestamp;
     private final double backOdds;
+    private final String marketStatus;
 
     private Quote(long minute, String timestamp, double backOdds) {
+      this(minute, timestamp, backOdds, "");
+    }
+
+    private Quote(long minute, String timestamp, double backOdds, String marketStatus) {
       this.minute = minute;
       this.timestamp = timestamp;
       this.backOdds = backOdds;
+      this.marketStatus = marketStatus == null ? "" : marketStatus;
     }
 
     private double backOdds() {
       return backOdds;
+    }
+
+    private long minute() {
+      return minute;
+    }
+
+    private String marketStatus() {
+      return marketStatus;
     }
 
     private boolean isAfter(Quote other) {
@@ -1094,6 +1377,42 @@ public class GameService {
         return minute > other.minute;
       }
       return timestamp.compareTo(other.timestamp) > 0;
+    }
+  }
+
+  private static final class ZeroZeroSummary {
+    private final Quote preKickoff;
+    private final Quote latest;
+
+    private ZeroZeroSummary(Quote preKickoff, Quote latest) {
+      this.preKickoff = preKickoff;
+      this.latest = latest;
+    }
+
+    private Quote preKickoff() {
+      return preKickoff;
+    }
+
+    private Quote latest() {
+      return latest;
+    }
+  }
+
+  private static final class OverUnderSummary {
+    private final Quote overQuote;
+    private final Quote underQuote;
+
+    private OverUnderSummary(Quote overQuote, Quote underQuote) {
+      this.overQuote = overQuote;
+      this.underQuote = underQuote;
+    }
+
+    private Quote overQuote() {
+      return overQuote;
+    }
+
+    private Quote underQuote() {
+      return underQuote;
     }
   }
 }
