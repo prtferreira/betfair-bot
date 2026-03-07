@@ -8,6 +8,8 @@ public class RefdataStatpalBetfairMappingEntry {
   private String betfairEventId;
   private String betfairHomeTeam;
   private String betfairAwayTeam;
+  private String apiStartTime;
+  private String betfairStartTime;
   private String source;
   private Double confidenceScore;
   private String updatedAt;
@@ -22,6 +24,8 @@ public class RefdataStatpalBetfairMappingEntry {
       String betfairEventId,
       String betfairHomeTeam,
       String betfairAwayTeam,
+      String apiStartTime,
+      String betfairStartTime,
       String source,
       Double confidenceScore,
       String updatedAt) {
@@ -32,6 +36,8 @@ public class RefdataStatpalBetfairMappingEntry {
     this.betfairEventId = betfairEventId;
     this.betfairHomeTeam = betfairHomeTeam;
     this.betfairAwayTeam = betfairAwayTeam;
+    this.apiStartTime = apiStartTime;
+    this.betfairStartTime = betfairStartTime;
     this.source = source;
     this.confidenceScore = confidenceScore;
     this.updatedAt = updatedAt;
@@ -91,6 +97,22 @@ public class RefdataStatpalBetfairMappingEntry {
 
   public void setBetfairAwayTeam(String betfairAwayTeam) {
     this.betfairAwayTeam = betfairAwayTeam;
+  }
+
+  public String getApiStartTime() {
+    return apiStartTime;
+  }
+
+  public void setApiStartTime(String apiStartTime) {
+    this.apiStartTime = apiStartTime;
+  }
+
+  public String getBetfairStartTime() {
+    return betfairStartTime;
+  }
+
+  public void setBetfairStartTime(String betfairStartTime) {
+    this.betfairStartTime = betfairStartTime;
   }
 
   public String getSource() {

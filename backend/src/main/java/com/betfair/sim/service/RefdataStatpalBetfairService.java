@@ -12,11 +12,15 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Normalizer;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,6 +39,8 @@ import org.springframework.stereotype.Service;
 public class RefdataStatpalBetfairService {
   private static final DateTimeFormatter API_FILE_DATE = DateTimeFormatter.BASIC_ISO_DATE;
   private static final DateTimeFormatter API_MATCH_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+  private static final DateTimeFormatter API_MATCH_DATE_TIME =
+      DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
   private static final Set<String> STOP_WORDS =
       Set.of("fc", "cf", "sc", "fk", "ac", "afc", "club", "de", "cd");
 
@@ -60,7 +66,8 @@ public class RefdataStatpalBetfairService {
         date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC) : LocalDate.parse(date);
     List<RefdataStatpalBetfairApiMatch> apiMatches = loadApiMatches(resolvedDate);
     List<RefdataStatpalBetfairBetfairMatch> betfairMatches = loadBetfairMatches(resolvedDate);
-    List<RefdataStatpalBetfairMappingEntry> mappings = loadMappings(resolvedDate);
+    List<RefdataStatpalBetfairMappingEntry> mappings =
+        enrichMappingsWithStartTimes(loadMappings(resolvedDate), apiMatches, betfairMatches);
     return new RefdataStatpalBetfairCandidatesResponse(
         resolvedDate.toString(), apiMatches, betfairMatches, mappings);
   }
@@ -116,6 +123,266 @@ public class RefdataStatpalBetfairService {
       mappedCount++;
     }
 
+    // 1.1) One-side equivalent name + other-side similarity:
+    // e.g. "Kitchee" vs "Kitchee SC" on one side, with the other side still reasonably close.
+    for (RefdataStatpalBetfairApiMatch api : apiPool) {
+      if (usedApiIds.contains(api.getApiMatchId())) {
+        continue;
+      }
+      MatchCandidate best = null;
+      MatchCandidate second = null;
+      for (RefdataStatpalBetfairBetfairMatch betfair : betfairPool) {
+        if (usedBetfairIds.contains(betfair.getBetfairEventId())) {
+          continue;
+        }
+
+        boolean directHomeEq = teamEquivalent(api.getHomeTeam(), betfair.getHomeTeam());
+        boolean directAwayEq = teamEquivalent(api.getAwayTeam(), betfair.getAwayTeam());
+        boolean swappedHomeEq = teamEquivalent(api.getHomeTeam(), betfair.getAwayTeam());
+        boolean swappedAwayEq = teamEquivalent(api.getAwayTeam(), betfair.getHomeTeam());
+
+        double directOtherSim = 0d;
+        if (directHomeEq) {
+          directOtherSim = Math.max(directOtherSim, nameSimilarity(api.getAwayTeam(), betfair.getAwayTeam()));
+        }
+        if (directAwayEq) {
+          directOtherSim = Math.max(directOtherSim, nameSimilarity(api.getHomeTeam(), betfair.getHomeTeam()));
+        }
+
+        double swappedOtherSim = 0d;
+        if (swappedHomeEq) {
+          swappedOtherSim = Math.max(swappedOtherSim, nameSimilarity(api.getAwayTeam(), betfair.getHomeTeam()));
+        }
+        if (swappedAwayEq) {
+          swappedOtherSim = Math.max(swappedOtherSim, nameSimilarity(api.getHomeTeam(), betfair.getAwayTeam()));
+        }
+
+        boolean hasEquivalentSide = directHomeEq || directAwayEq || swappedHomeEq || swappedAwayEq;
+        double otherSideSimilarity = Math.max(directOtherSim, swappedOtherSim);
+        if (!hasEquivalentSide || otherSideSimilarity < 0.45d) {
+          continue;
+        }
+
+        long kickoffDeltaMinutes = kickoffDeltaMinutes(api.getStartTime(), betfair.getStartTime());
+        double score =
+            Math.min(0.995d, 0.88d + (0.08d * otherSideSimilarity) + kickoffProximityBoost(kickoffDeltaMinutes));
+        MatchCandidate candidate =
+            new MatchCandidate(
+                betfair,
+                score,
+                "one-side-equivalent",
+                hasEquivalentSide ? 1 : 0,
+                kickoffDeltaMinutes);
+        if (best == null || candidate.score() > best.score()) {
+          second = best;
+          best = candidate;
+        } else if (second == null || candidate.score() > second.score()) {
+          second = candidate;
+        }
+      }
+
+      if (best == null) {
+        continue;
+      }
+      if (second != null
+          && (best.score() - second.score()) < 0.03d
+          && !hasClearlyBetterKickoff(best, second)) {
+        continue;
+      }
+
+      RefdataStatpalBetfairBetfairMatch chosen = best.betfairMatch();
+      saveMapping(
+          resolvedDate.toString(),
+          api.getApiMatchId(),
+          chosen.getBetfairEventId(),
+          "auto-one-side-equivalent",
+          round2(best.score()));
+      usedBetfairIds.add(chosen.getBetfairEventId());
+      usedApiIds.add(api.getApiMatchId());
+      mappedCount++;
+    }
+
+    // 1.2) Strong single-side team-name auto-map:
+    // if one side is a near-exact long-token match (e.g. "Kitchee" vs "Kitchee SC")
+    // and only one Betfair candidate satisfies it, map directly.
+    for (RefdataStatpalBetfairApiMatch api : apiPool) {
+      if (usedApiIds.contains(api.getApiMatchId())) {
+        continue;
+      }
+      List<RefdataStatpalBetfairBetfairMatch> strongCandidates = new ArrayList<>();
+      for (RefdataStatpalBetfairBetfairMatch betfair : betfairPool) {
+        if (usedBetfairIds.contains(betfair.getBetfairEventId())) {
+          continue;
+        }
+        double directHomeStrong = longWordMatchScore(api.getHomeTeam(), betfair.getHomeTeam());
+        double directAwayStrong = longWordMatchScore(api.getAwayTeam(), betfair.getAwayTeam());
+        double swappedHomeStrong = longWordMatchScore(api.getHomeTeam(), betfair.getAwayTeam());
+        double swappedAwayStrong = longWordMatchScore(api.getAwayTeam(), betfair.getHomeTeam());
+        double bestSingleSideStrong =
+            Math.max(
+                Math.max(directHomeStrong, directAwayStrong),
+                Math.max(swappedHomeStrong, swappedAwayStrong));
+        if (bestSingleSideStrong >= 0.99d) {
+          strongCandidates.add(betfair);
+        }
+      }
+      if (strongCandidates.size() != 1) {
+        continue;
+      }
+      RefdataStatpalBetfairBetfairMatch chosen = strongCandidates.get(0);
+      saveMapping(
+          resolvedDate.toString(),
+          api.getApiMatchId(),
+          chosen.getBetfairEventId(),
+          "auto-strong-single-side",
+          0.98d);
+      usedBetfairIds.add(chosen.getBetfairEventId());
+      usedApiIds.add(api.getApiMatchId());
+      mappedCount++;
+    }
+
+    // 1.25) Long-token priority:
+    // if one-side long token match points to a unique Betfair candidate, map even when kickoff
+    // times are not close (API feed times may use a different timezone).
+    for (RefdataStatpalBetfairApiMatch api : apiPool) {
+      if (usedApiIds.contains(api.getApiMatchId())) {
+        continue;
+      }
+      MatchCandidate best = null;
+      MatchCandidate second = null;
+      int tokenMatchedCandidates = 0;
+      for (RefdataStatpalBetfairBetfairMatch betfair : betfairPool) {
+        if (usedBetfairIds.contains(betfair.getBetfairEventId())) {
+          continue;
+        }
+        long kickoffDeltaMinutes = kickoffDeltaMinutes(api.getStartTime(), betfair.getStartTime());
+        int sharedLongTokenCount = sharedLongTokenCountAnySide(api, betfair);
+        if (sharedLongTokenCount > 0) {
+          tokenMatchedCandidates++;
+          double score =
+              Math.min(
+                  0.995d,
+                  0.86d
+                      + (0.06d * sharedLongTokenCount)
+                      + kickoffProximityBoost(kickoffDeltaMinutes));
+          MatchCandidate candidate =
+              new MatchCandidate(
+                  betfair,
+                  score,
+                  "one-side-token-time-priority",
+                  sharedLongTokenCount,
+                  kickoffDeltaMinutes);
+          if (best == null || candidate.score() > best.score()) {
+            second = best;
+            best = candidate;
+          } else if (second == null || candidate.score() > second.score()) {
+            second = candidate;
+          }
+        }
+      }
+      if (best == null) {
+        continue;
+      }
+      // If only one candidate shares long tokens, map it directly even when kickoff delta is high.
+      if (tokenMatchedCandidates == 1) {
+        RefdataStatpalBetfairBetfairMatch chosen = best.betfairMatch();
+        double confidence =
+            best.kickoffDeltaMinutes() == Long.MAX_VALUE || best.kickoffDeltaMinutes() > 120
+                ? 0.90d
+                : round2(best.score());
+        saveMapping(
+            resolvedDate.toString(),
+            api.getApiMatchId(),
+            chosen.getBetfairEventId(),
+            "auto-unique-token",
+            confidence);
+        usedBetfairIds.add(chosen.getBetfairEventId());
+        usedApiIds.add(api.getApiMatchId());
+        mappedCount++;
+        continue;
+      }
+      if (second != null
+          && (best.score() - second.score()) < 0.06d
+          && !hasClearlyBetterKickoff(best, second)
+          && best.longOverlapTotal() <= second.longOverlapTotal()) {
+        continue;
+      }
+      RefdataStatpalBetfairBetfairMatch chosen = best.betfairMatch();
+      saveMapping(
+          resolvedDate.toString(),
+          api.getApiMatchId(),
+          chosen.getBetfairEventId(),
+          "auto-token-time-priority",
+          round2(best.score()));
+      usedBetfairIds.add(chosen.getBetfairEventId());
+      usedApiIds.add(api.getApiMatchId());
+      mappedCount++;
+    }
+
+    // 1.5) One-side name + same kickoff auto-map:
+    // if one team matches (long token >4 chars) and kickoff time is very close, map even if other side differs.
+    for (RefdataStatpalBetfairApiMatch api : apiPool) {
+      if (usedApiIds.contains(api.getApiMatchId())) {
+        continue;
+      }
+      MatchCandidate best = null;
+      MatchCandidate second = null;
+      for (RefdataStatpalBetfairBetfairMatch betfair : betfairPool) {
+        if (usedBetfairIds.contains(betfair.getBetfairEventId())) {
+          continue;
+        }
+        long kickoffDeltaMinutes = kickoffDeltaMinutes(api.getStartTime(), betfair.getStartTime());
+        if (kickoffDeltaMinutes > 15L) {
+          continue;
+        }
+
+        int directHomeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getHomeTeam());
+        int directAwayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getAwayTeam());
+        int swappedHomeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getAwayTeam());
+        int swappedAwayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getHomeTeam());
+        int bestSingleSideOverlap =
+            Math.max(
+                Math.max(directHomeLongOverlap, directAwayLongOverlap),
+                Math.max(swappedHomeLongOverlap, swappedAwayLongOverlap));
+        if (bestSingleSideOverlap <= 0) {
+          continue;
+        }
+
+        double score = Math.min(0.99d, 0.84d + (0.05d * bestSingleSideOverlap) + kickoffProximityBoost(kickoffDeltaMinutes));
+        MatchCandidate candidate =
+            new MatchCandidate(
+                betfair,
+                score,
+                "one-side-longword-time",
+                bestSingleSideOverlap,
+                kickoffDeltaMinutes);
+        if (best == null || candidate.score() > best.score()) {
+          second = best;
+          best = candidate;
+        } else if (second == null || candidate.score() > second.score()) {
+          second = candidate;
+        }
+      }
+      if (best == null) {
+        continue;
+      }
+      if (second != null
+          && (best.score() - second.score()) < 0.05d
+          && !hasClearlyBetterKickoff(best, second)) {
+        continue;
+      }
+      RefdataStatpalBetfairBetfairMatch chosen = best.betfairMatch();
+      saveMapping(
+          resolvedDate.toString(),
+          api.getApiMatchId(),
+          chosen.getBetfairEventId(),
+          "auto-one-side-time",
+          round2(best.score()));
+      usedBetfairIds.add(chosen.getBetfairEventId());
+      usedApiIds.add(api.getApiMatchId());
+      mappedCount++;
+    }
+
     // 2) Fallback auto-map:
     // enough to have 1 shared long token (>4 chars) on either home OR away side.
     for (RefdataStatpalBetfairApiMatch api : apiPool) {
@@ -128,30 +395,61 @@ public class RefdataStatpalBetfairService {
         if (usedBetfairIds.contains(betfair.getBetfairEventId())) {
           continue;
         }
-        double homeScore = nameSimilarity(api.getHomeTeam(), betfair.getHomeTeam());
-        double awayScore = nameSimilarity(api.getAwayTeam(), betfair.getAwayTeam());
-        double homeLongWordScore = longWordMatchScore(api.getHomeTeam(), betfair.getHomeTeam());
-        double awayLongWordScore = longWordMatchScore(api.getAwayTeam(), betfair.getAwayTeam());
-        int homeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getHomeTeam());
-        int awayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getAwayTeam());
-        int longOverlapTotal = homeLongOverlap + awayLongOverlap;
-        boolean hasSingleLongWordMatch = homeLongOverlap > 0 || awayLongOverlap > 0;
-        if (!hasSingleLongWordMatch) {
+        // Try both orientations: direct (home-home/away-away) and swapped (home-away/away-home).
+        double directHomeScore = nameSimilarity(api.getHomeTeam(), betfair.getHomeTeam());
+        double directAwayScore = nameSimilarity(api.getAwayTeam(), betfair.getAwayTeam());
+        double directHomeLongWordScore = longWordMatchScore(api.getHomeTeam(), betfair.getHomeTeam());
+        double directAwayLongWordScore = longWordMatchScore(api.getAwayTeam(), betfair.getAwayTeam());
+        int directHomeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getHomeTeam());
+        int directAwayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getAwayTeam());
+        int directLongOverlapTotal = directHomeLongOverlap + directAwayLongOverlap;
+
+        double swappedHomeScore = nameSimilarity(api.getHomeTeam(), betfair.getAwayTeam());
+        double swappedAwayScore = nameSimilarity(api.getAwayTeam(), betfair.getHomeTeam());
+        double swappedHomeLongWordScore = longWordMatchScore(api.getHomeTeam(), betfair.getAwayTeam());
+        double swappedAwayLongWordScore = longWordMatchScore(api.getAwayTeam(), betfair.getHomeTeam());
+        int swappedHomeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getAwayTeam());
+        int swappedAwayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getHomeTeam());
+        int swappedLongOverlapTotal = swappedHomeLongOverlap + swappedAwayLongOverlap;
+
+        boolean useSwapped = swappedLongOverlapTotal > directLongOverlapTotal;
+        if (swappedLongOverlapTotal == directLongOverlapTotal) {
+          double directBase = Math.max(directHomeScore, directAwayScore);
+          double swappedBase = Math.max(swappedHomeScore, swappedAwayScore);
+          if (swappedBase > directBase) {
+            useSwapped = true;
+          }
+        }
+
+        double homeScore = useSwapped ? swappedHomeScore : directHomeScore;
+        double awayScore = useSwapped ? swappedAwayScore : directAwayScore;
+        double homeLongWordScore = useSwapped ? swappedHomeLongWordScore : directHomeLongWordScore;
+        double awayLongWordScore = useSwapped ? swappedAwayLongWordScore : directAwayLongWordScore;
+        int longOverlapTotal = useSwapped ? swappedLongOverlapTotal : directLongOverlapTotal;
+
+        if (longOverlapTotal <= 0) {
           continue;
         }
+        long kickoffDeltaMinutes = kickoffDeltaMinutes(api.getStartTime(), betfair.getStartTime());
         double score = Math.max(Math.max(homeScore, awayScore), Math.max(homeLongWordScore, awayLongWordScore));
         if (longOverlapTotal > 0) {
           // Shared long words (>4 chars) are a strong signal for near-identical team names.
           score = Math.max(score, Math.min(0.98d, 0.78d + (0.07d * longOverlapTotal)));
         }
-        String matchedSide = homeScore >= awayScore ? "home" : "away";
+        score = Math.min(1d, score + kickoffProximityBoost(kickoffDeltaMinutes));
+        String matchedSide = useSwapped ? "swapped" : "direct";
+        if (homeScore >= awayScore) {
+          matchedSide = matchedSide + "-home";
+        } else {
+          matchedSide = matchedSide + "-away";
+        }
         if (homeLongWordScore > awayLongWordScore && homeLongWordScore > homeScore) {
-          matchedSide = "home-longword";
+          matchedSide = (useSwapped ? "swapped" : "direct") + "-home-longword";
         } else if (awayLongWordScore > homeLongWordScore && awayLongWordScore > awayScore) {
-          matchedSide = "away-longword";
+          matchedSide = (useSwapped ? "swapped" : "direct") + "-away-longword";
         }
         MatchCandidate candidate =
-            new MatchCandidate(betfair, score, matchedSide, longOverlapTotal);
+            new MatchCandidate(betfair, score, matchedSide, longOverlapTotal, kickoffDeltaMinutes);
         if (best == null || candidate.score() > best.score()) {
           second = best;
           best = candidate;
@@ -164,7 +462,8 @@ public class RefdataStatpalBetfairService {
       }
       if (second != null
           && (best.score() - second.score()) < 0.08d
-          && best.longOverlapTotal() <= second.longOverlapTotal()) {
+          && best.longOverlapTotal() <= second.longOverlapTotal()
+          && !hasClearlyBetterKickoff(best, second)) {
         continue;
       }
       RefdataStatpalBetfairBetfairMatch chosen = best.betfairMatch();
@@ -387,11 +686,18 @@ public class RefdataStatpalBetfairService {
               raw.leagueName(),
               raw.homeTeam(),
               raw.awayTeam(),
+              raw.startDateTime() == null
+                  ? ""
+                  : raw.startDateTime().atZone(ZoneOffset.UTC).toInstant().toString(),
               raw.displayName()));
     }
 
     return byId.values().stream()
-        .sorted(Comparator.comparing(RefdataStatpalBetfairApiMatch::getDisplayName))
+        .sorted(
+            Comparator.comparing(
+                    RefdataStatpalBetfairApiMatch::getStartTime,
+                    Comparator.nullsLast(String::compareTo))
+                .thenComparing(RefdataStatpalBetfairApiMatch::getDisplayName))
         .toList();
   }
 
@@ -440,12 +746,16 @@ public class RefdataStatpalBetfairService {
     String fallbackId1 = text(matchNode.path("fallback_id_1"));
     String home = text(matchNode.path("home").path("name"));
     String away = text(matchNode.path("away").path("name"));
-    LocalDate matchDate = parseMatchDate(text(matchNode.path("date")), fallbackDate);
+    String rawDate = text(matchNode.path("date"));
+    String rawTime = text(matchNode.path("time"));
+    LocalDate matchDate = parseMatchDate(rawDate, fallbackDate);
+    LocalDateTime startDateTime = parseMatchStart(rawDate, rawTime, matchDate);
     out.add(
         new ApiRawMatch(
             mainId,
             fallbackId1,
             matchDate,
+            startDateTime,
             leagueName,
             home,
             away,
@@ -472,8 +782,122 @@ public class RefdataStatpalBetfairService {
               (home + " vs " + away).trim()));
     }
     return byId.values().stream()
-        .sorted(Comparator.comparing(RefdataStatpalBetfairBetfairMatch::getDisplayName))
+        .sorted(
+            Comparator.comparing(
+                    RefdataStatpalBetfairBetfairMatch::getStartTime,
+                    Comparator.nullsLast(String::compareTo))
+                .thenComparing(RefdataStatpalBetfairBetfairMatch::getDisplayName))
         .toList();
+  }
+
+  private static LocalDateTime parseMatchStart(String rawDate, String rawTime, LocalDate matchDate) {
+    if (matchDate == null) {
+      return null;
+    }
+    String datePart =
+        rawDate == null || rawDate.isBlank() ? matchDate.format(API_MATCH_DATE) : rawDate.trim();
+    String timePart = rawTime == null ? "" : rawTime.trim();
+    if (timePart.matches("^\\d{1,2}:\\d{2}$")) {
+      if (timePart.length() == 4) {
+        timePart = "0" + timePart;
+      }
+      try {
+        return LocalDateTime.parse(datePart + " " + timePart, API_MATCH_DATE_TIME);
+      } catch (Exception ignored) {
+        return matchDate.atStartOfDay();
+      }
+    }
+    return matchDate.atStartOfDay();
+  }
+
+  private static int sharedLongTokenCountAnySide(
+      RefdataStatpalBetfairApiMatch api, RefdataStatpalBetfairBetfairMatch betfair) {
+    Set<String> apiTokens = new HashSet<>();
+    apiTokens.addAll(longTokens(normalize(api.getHomeTeam())));
+    apiTokens.addAll(longTokens(normalize(api.getAwayTeam())));
+    if (apiTokens.isEmpty()) {
+      return 0;
+    }
+    Set<String> betfairTokens = new HashSet<>();
+    betfairTokens.addAll(longTokens(normalize(betfair.getHomeTeam())));
+    betfairTokens.addAll(longTokens(normalize(betfair.getAwayTeam())));
+    if (betfairTokens.isEmpty()) {
+      return 0;
+    }
+    Set<String> intersection = new HashSet<>(apiTokens);
+    intersection.retainAll(betfairTokens);
+    return intersection.size();
+  }
+
+  private static boolean teamEquivalent(String left, String right) {
+    String l = canonicalTeamName(left);
+    String r = canonicalTeamName(right);
+    if (l.isBlank() || r.isBlank()) {
+      return false;
+    }
+    if (l.equals(r)) {
+      return true;
+    }
+    return l.contains(r) || r.contains(l);
+  }
+
+  private static String canonicalTeamName(String value) {
+    String normalized = normalize(value);
+    if (normalized.isBlank()) {
+      return "";
+    }
+    List<String> tokens =
+        Arrays.stream(normalized.split("\\s+"))
+            .map(String::trim)
+            .filter(token -> !token.isBlank())
+            .filter(token -> !STOP_WORDS.contains(token))
+            .toList();
+    if (tokens.isEmpty()) {
+      return normalized;
+    }
+    return String.join(" ", tokens);
+  }
+
+  private static long kickoffDeltaMinutes(String leftIso, String rightIso) {
+    if (leftIso == null || leftIso.isBlank() || rightIso == null || rightIso.isBlank()) {
+      return Long.MAX_VALUE;
+    }
+    try {
+      Instant left = Instant.parse(leftIso);
+      Instant right = Instant.parse(rightIso);
+      return Math.abs(Duration.between(left, right).toMinutes());
+    } catch (Exception ex) {
+      return Long.MAX_VALUE;
+    }
+  }
+
+  private static double kickoffProximityBoost(long deltaMinutes) {
+    if (deltaMinutes == Long.MAX_VALUE) {
+      return 0d;
+    }
+    if (deltaMinutes <= 10) {
+      return 0.12d;
+    }
+    if (deltaMinutes <= 30) {
+      return 0.08d;
+    }
+    if (deltaMinutes <= 90) {
+      return 0.04d;
+    }
+    if (deltaMinutes <= 180) {
+      return 0.02d;
+    }
+    return 0d;
+  }
+
+  private static boolean hasClearlyBetterKickoff(MatchCandidate best, MatchCandidate second) {
+    if (best == null || second == null) {
+      return false;
+    }
+    if (best.kickoffDeltaMinutes() == Long.MAX_VALUE || second.kickoffDeltaMinutes() == Long.MAX_VALUE) {
+      return false;
+    }
+    return (second.kickoffDeltaMinutes() - best.kickoffDeltaMinutes()) >= 45L;
   }
 
   private List<RefdataStatpalBetfairMappingEntry> loadMappings(LocalDate date) {
@@ -492,10 +916,34 @@ public class RefdataStatpalBetfairService {
                 rs.getString("betfair_event_id"),
                 rs.getString("betfair_home_team"),
                 rs.getString("betfair_away_team"),
+                "",
+                "",
                 rs.getString("mapping_source"),
                 rs.getObject("confidence_score") == null ? null : rs.getDouble("confidence_score"),
                 rs.getTimestamp("updated_at") == null ? "" : rs.getTimestamp("updated_at").toInstant().toString()),
         date);
+  }
+
+  private List<RefdataStatpalBetfairMappingEntry> enrichMappingsWithStartTimes(
+      List<RefdataStatpalBetfairMappingEntry> mappings,
+      List<RefdataStatpalBetfairApiMatch> apiMatches,
+      List<RefdataStatpalBetfairBetfairMatch> betfairMatches) {
+    if (mappings == null || mappings.isEmpty()) {
+      return mappings == null ? List.of() : mappings;
+    }
+    Map<String, String> apiStartById = new HashMap<>();
+    for (RefdataStatpalBetfairApiMatch apiMatch : apiMatches) {
+      apiStartById.put(apiMatch.getApiMatchId(), apiMatch.getStartTime());
+    }
+    Map<String, String> betfairStartById = new HashMap<>();
+    for (RefdataStatpalBetfairBetfairMatch betfairMatch : betfairMatches) {
+      betfairStartById.put(betfairMatch.getBetfairEventId(), betfairMatch.getStartTime());
+    }
+    for (RefdataStatpalBetfairMappingEntry mapping : mappings) {
+      mapping.setApiStartTime(value(apiStartById.get(mapping.getApiMatchId())));
+      mapping.setBetfairStartTime(value(betfairStartById.get(mapping.getBetfairEventId())));
+    }
+    return mappings;
   }
 
   private static String normalize(String value) {
@@ -621,6 +1069,7 @@ public class RefdataStatpalBetfairService {
       String mainId,
       String fallbackId1,
       LocalDate matchDate,
+      LocalDateTime startDateTime,
       String leagueName,
       String homeTeam,
       String awayTeam,
@@ -630,5 +1079,6 @@ public class RefdataStatpalBetfairService {
       RefdataStatpalBetfairBetfairMatch betfairMatch,
       double score,
       String matchedSide,
-      int longOverlapTotal) {}
+      int longOverlapTotal,
+      long kickoffDeltaMinutes) {}
 }

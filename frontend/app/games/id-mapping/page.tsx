@@ -10,6 +10,7 @@ interface ApiMatch {
   leagueName: string;
   homeTeam: string;
   awayTeam: string;
+  startTime?: string;
   displayName: string;
 }
 
@@ -30,6 +31,8 @@ interface MappingEntry {
   betfairEventId: string;
   betfairHomeTeam: string;
   betfairAwayTeam: string;
+  apiStartTime?: string;
+  betfairStartTime?: string;
   source: string;
   confidenceScore?: number;
   updatedAt: string;
@@ -52,10 +55,19 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatKickoff(raw?: string): string {
+  if (!raw) return "-";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleString();
+}
+
 export default function IdMappingPage() {
   const [date, setDate] = useState<string>(() => formatLocalDate(new Date()));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoMapRunning, setAutoMapRunning] = useState(false);
+  const [lastAutoMapAt, setLastAutoMapAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [payload, setPayload] = useState<CandidateResponse | null>(null);
@@ -134,6 +146,14 @@ export default function IdMappingPage() {
       return haystack.includes(query);
     });
   }, [apiUnmapped, apiSearch]);
+
+  const progress = useMemo(() => {
+    const total = payload?.betfairMatches.length ?? 0;
+    const mapped = payload ? mappedBetfairIds.size : 0;
+    const clampedMapped = Math.max(0, Math.min(mapped, total));
+    const percent = total > 0 ? Math.round((clampedMapped / total) * 100) : 0;
+    return { mapped: clampedMapped, total, percent };
+  }, [payload, mappedBetfairIds]);
 
   const saveMap = async (
     apiMatchId: string,
@@ -219,6 +239,7 @@ export default function IdMappingPage() {
 
   const autoMap = async (): Promise<void> => {
     setSaving(true);
+    setAutoMapRunning(true);
     setError(null);
     setStatusMessage(null);
     try {
@@ -232,13 +253,28 @@ export default function IdMappingPage() {
       const payload = (await response.json()) as { mappedCount?: number };
       setStatusMessage(`Auto-mapped ${payload.mappedCount ?? 0} games.`);
       await load(date);
+      setLastAutoMapAt(new Date().toISOString());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to run auto-map";
       setError(message);
     } finally {
+      setAutoMapRunning(false);
       setSaving(false);
     }
   };
+
+  const autoMapStatusText = useMemo(() => {
+    if (autoMapRunning) {
+      return "Auto-match is running...";
+    }
+    if (lastAutoMapAt) {
+      if (apiUnmapped.length === 0 || betfairUnmapped.length === 0) {
+        return "Auto-match finished. No pending pairs to try.";
+      }
+      return `Auto-match finished. Still pending: ${apiUnmapped.length} API and ${betfairUnmapped.length} Betfair games.`;
+    }
+    return "Auto-match is idle.";
+  }, [autoMapRunning, lastAutoMapAt, apiUnmapped.length, betfairUnmapped.length]);
 
   return (
     <main className="idmap-page">
@@ -272,19 +308,65 @@ export default function IdMappingPage() {
           </button>
         </div>
 
-        {loading ? <p className="idmap-hint">Loading mapping candidates...</p> : null}
+        {loading ? (
+          <>
+            <p className="idmap-hint">
+              Loading API games, Betfair games and mappings... waiting for server response
+            </p>
+            <div className="idmap-load-progress">
+              <div
+                className="idmap-load-progress__bar"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuetext="Loading mapping data"
+              >
+                <div className="idmap-load-progress__fill idmap-load-progress__fill--indeterminate" />
+              </div>
+            </div>
+          </>
+        ) : null}
+        <p
+          className={`idmap-hint ${
+            autoMapRunning ? "idmap-hint--running" : "idmap-hint--idle"
+          }`}
+        >
+          {autoMapStatusText}
+        </p>
         {saving ? <p className="idmap-hint">Saving...</p> : null}
         {statusMessage ? <p className="idmap-hint idmap-hint--ok">{statusMessage}</p> : null}
         {error ? <p className="idmap-hint idmap-hint--error">{error}</p> : null}
 
         {payload ? (
-          <div className="idmap-stats">
-            <span>API: {payload.apiMatches.length}</span>
-            <span>Betfair: {payload.betfairMatches.length}</span>
-            <span>Mapped: {payload.mappings.length}</span>
-            <span>Unmapped API: {apiUnmapped.length}</span>
-            <span>Unmapped Betfair: {betfairUnmapped.length}</span>
-          </div>
+          <>
+            <div className="idmap-progress" aria-live="polite">
+              <div className="idmap-progress__labels">
+                <span>
+                  Matched: {progress.mapped} / {progress.total}
+                </span>
+                <span>{progress.percent}%</span>
+              </div>
+              <div
+                className="idmap-progress__bar"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={progress.total || 100}
+                aria-valuenow={progress.mapped}
+              >
+                <div
+                  className="idmap-progress__fill"
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+            </div>
+            <div className="idmap-stats">
+              <span>API: {payload.apiMatches.length}</span>
+              <span>Betfair: {payload.betfairMatches.length}</span>
+              <span>Mapped: {payload.mappings.length}</span>
+              <span>Unmapped API: {apiUnmapped.length}</span>
+              <span>Unmapped Betfair: {betfairUnmapped.length}</span>
+            </div>
+          </>
         ) : null}
 
         <section className="idmap-grid">
@@ -372,10 +454,16 @@ export default function IdMappingPage() {
                       <td>
                         {mapping.apiHomeTeam} vs {mapping.apiAwayTeam}
                         <div className="idmap-id">api: {mapping.apiMatchId}</div>
+                        <div className="idmap-id">
+                          start: {formatKickoff(mapping.apiStartTime)}
+                        </div>
                       </td>
                       <td>
                         {mapping.betfairHomeTeam} vs {mapping.betfairAwayTeam}
                         <div className="idmap-id">betfair: {mapping.betfairEventId}</div>
+                        <div className="idmap-id">
+                          start: {formatKickoff(mapping.betfairStartTime)}
+                        </div>
                       </td>
                       <td>{mapping.source || "-"}</td>
                       <td>

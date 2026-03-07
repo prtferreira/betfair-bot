@@ -6,6 +6,7 @@ public class RefdataStatpalBetfairApiMatch {
   private String leagueName;
   private String homeTeam;
   private String awayTeam;
+  private String startTime;
   private String displayName;
 
   public RefdataStatpalBetfairApiMatch() {}
@@ -16,12 +17,14 @@ public class RefdataStatpalBetfairApiMatch {
       String leagueName,
       String homeTeam,
       String awayTeam,
+      String startTime,
       String displayName) {
     this.apiMatchId = apiMatchId;
     this.date = date;
     this.leagueName = leagueName;
     this.homeTeam = homeTeam;
     this.awayTeam = awayTeam;
+    this.startTime = startTime;
     this.displayName = displayName;
   }
 
@@ -63,6 +66,14 @@ public class RefdataStatpalBetfairApiMatch {
 
   public void setAwayTeam(String awayTeam) {
     this.awayTeam = awayTeam;
+  }
+
+  public String getStartTime() {
+    return startTime;
+  }
+
+  public void setStartTime(String startTime) {
+    this.startTime = startTime;
   }
 
   public String getDisplayName() {
