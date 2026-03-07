@@ -1,0 +1,540 @@
+2026-03-07 | Delfin vs Guayaquil City | minute=60 | Delfin=2.8, Draw=1.98, Guayaquil City=6.4
+2026-03-07 | Tauro FC vs Herrera FC | minute=60 | Tauro FC=1.47, Draw=3.35, Herrera FC=19.0
+2026-03-07 | Gorilas de Juanacatlán vs Club Deportivo Ayense | minute=60 | Gorilas de Juanacatlán=4.0, Draw=2.14, Club Deportivo Ayense=3.25
+2026-03-07 | Necaxa vs Pumas UNAM | minute=60 | Necaxa=4.0, Draw=2.44, Pumas UNAM=2.92
+2026-03-07 | Paju Citizen vs Suwon Bluewings | minute=61 | Paju Citizen=6.6, Draw=2.4, Suwon Bluewings=1.96
+2026-03-07 | Iwaki SC vs Omiya | minute=60 | Iwaki SC=4.7, Draw=2.08, Omiya=3.1
+2026-03-07 | Cerezo Osaka vs Shimizu | minute=60 | Cerezo Osaka=2.68, Draw=2.32, Shimizu=4.7
+2026-03-07 | Bucheon FC 1995 vs Daejeon Citizen | minute=60 | Bucheon FC 1995=4.3, Draw=2.1, Daejeon Citizen=2.88
+2026-03-07 | Tianjin Jinmen Tiger FC vs Chongqing Tonglianglong | minute=60 | Tianjin Jinmen Tiger FC=3.05, Draw=1.87, Chongqing Tonglianglong=5.3
+2026-03-07 | Gwangju FC vs Incheon Utd | minute=90 | Gwangju FC=1.01, Draw=15.5, Incheon Utd=1000.0
+2026-03-07 | Don Bosco Garelli vs Mendiola FC | minute=82 | Don Bosco Garelli=-, Draw=100.0, Mendiola FC=100.0
+2026-03-07 | Sydney FC vs Melbourne Victory | minute=86 | Sydney FC=3.9, Draw=1.71, Melbourne Victory=6.0
+2026-03-07 | Mohammedan Dhaka vs Fortis FC Limited | minute=84 | Mohammedan Dhaka=13.0, Draw=3.65, Fortis FC Limited=1.4
+2026-03-07 | CS FC Dinamo Bucuresti vs CSC 1599 Selimbar | minute=73 | CS FC Dinamo Bucuresti=1.05, Draw=18.0, CSC 1599 Selimbar=90.0
+2026-03-07 | Shanghai Shenhua vs Dalian Yingbo | minute=66 | Shanghai Shenhua=-, Draw=3.8, Dalian Yingbo=11.5
+2026-03-07 | Kazakhstan (W) vs Belarus (W) | minute=71 | Kazakhstan (W)=10.0, Draw=1.96, Belarus (W)=2.4
+2026-03-07 | Concordia Chiajna vs CSM Satu Mare | minute=71 | Concordia Chiajna=-, Draw=100.0, CSM Satu Mare=160.0
+2026-03-07 | Csm Slatina vs Ceahlaul | minute=68 | Csm Slatina=1.01, Draw=50.0, Ceahlaul=110.0
+2026-03-07 | CS Afumati vs CSA Steaua Bucuresti | minute=66 | CS Afumati=26.0, Draw=5.1, CSA Steaua Bucuresti=1.27
+2026-03-07 | Poli Iasi vs ACS Muscelul Campulung | minute=66 | Poli Iasi=1.09, Draw=2.02, ACS Muscelul Campulung=1.5
+2026-03-07 | FK Pribram B vs Sokol Hostoun | minute=63 | FK Pribram B=1.04, Draw=15.0, Sokol Hostoun=16.5
+2026-03-07 | MFK Chrudim vs SFC Opava | minute=60 | MFK Chrudim=5.3, Draw=2.18, SFC Opava=2.6
+2026-03-07 | SK Dynamo B vs Domazlice | minute=61 | SK Dynamo B=4.7, Draw=2.48, Domazlice=2.44
+2026-03-07 | FC Van Yerevan vs FC Ararat Yerevan | minute=60 | FC Van Yerevan=2.38, Draw=2.04, FC Ararat Yerevan=3.1
+2026-03-07 | FC Epicentr Dunaivtsi vs Kolos Kovalyovka | minute=60 | FC Epicentr Dunaivtsi=1.11, Draw=10.0, Kolos Kovalyovka=36.0
+2026-03-07 | BSK Bijelo Brdo vs Rudes | minute=60 | BSK Bijelo Brdo=4.2, Draw=1.82, Rudes=4.3
+2026-03-07 | Sportive de Tunis vs Avenir S Marsa | minute=60 | Sportive de Tunis=1.05, Draw=19.0, Avenir S Marsa=5.5
+2026-03-07 | FK Backa Topola vs Zeleznicar Pancevo | minute=60 | FK Backa Topola=2.82, Draw=2.0, Zeleznicar Pancevo=6.2
+2026-03-07 | ES Metlaoui vs Olympique De Beja | minute=60 | ES Metlaoui=2.2, Draw=2.26, Olympique De Beja=6.4
+2026-03-07 | US Monastirienne vs Club Sportif Sfaxien | minute=60 | US Monastirienne=4.5, Draw=1.69, Club Sportif Sfaxien=4.6
+2026-03-07 | HK Kopavogur vs Aegir | minute=90 | HK Kopavogur=-, Draw=-, Aegir=-
+2026-03-07 | Ayutthaya United vs Kanchanaburi Power | minute=90 | Ayutthaya United=55.0, Draw=50.0, Kanchanaburi Power=1.01
+2026-03-07 | Yunnan Yukun vs Qingdao Hainiu | minute=90 | Yunnan Yukun=-, Draw=300.0, Qingdao Hainiu=110.0
+2026-03-07 | Shanghai Port FC vs Henan Songshan Longmen | minute=90 | Shanghai Port FC=36.0, Draw=6.4, Henan Songshan Longmen=1.21
+2026-03-07 | BSK Bijelo Brdo vs Rudes | minute=87 | BSK Bijelo Brdo=11.5, Draw=1.16, Rudes=12.5
+2026-03-07 | NK Sesvete vs NK Dugopolje | minute=83 | NK Sesvete=-, Draw=100.0, NK Dugopolje=100.0
+2026-03-07 | Bosnia (W) vs Liechtenstein (W) | minute=69 | Bosnia (W)=-, Draw=100.0, Liechtenstein (W)=150.0
+2026-03-07 | Chanthaburi FC vs Bangkok FC | minute=66 | Chanthaburi FC=11.0, Draw=3.65, Bangkok FC=1.5
+2026-03-07 | SV Darmstadt vs Holstein Kiel | minute=64 | SV Darmstadt=1.01, Draw=50.0, Holstein Kiel=260.0
+2026-03-07 | Paderborn vs Braunschweig | minute=67 | Paderborn=6.4, Draw=3.1, Braunschweig=1.89
+2026-03-07 | KF Drita vs KF Prishtina E Re | minute=69 | KF Drita=1.02, Draw=32.0, KF Prishtina E Re=210.0
+2026-03-07 | Nurnberg vs Fortuna Dusseldorf | minute=67 | Nurnberg=13.0, Draw=4.0, Fortuna Dusseldorf=1.45
+2026-03-07 | Hammarby vs Osters | minute=69 | Hammarby=-, Draw=120.0, Osters=150.0
+2026-03-07 | Malut United vs PSM Makassar | minute=67 | Malut United=1.03, Draw=7.8, PSM Makassar=1.22
+2026-03-07 | Panevezys vs Hegelmann Litauen | minute=71 | Panevezys=1.3, Draw=4.7, Hegelmann Litauen=24.0
+2026-03-07 | US Monastirienne vs Club Sportif Sfaxien | minute=65 | US Monastirienne=4.6, Draw=1.63, Club Sportif Sfaxien=5.0
+2026-03-07 | Kalmar FF vs Orgryte | minute=68 | Kalmar FF=22.0, Draw=7.2, Orgryte=1.2
+2026-03-07 | Sportive de Tunis vs Avenir S Marsa | minute=70 | Sportive de Tunis=1.04, Draw=19.5, Avenir S Marsa=280.0
+2026-03-07 | Mjallby vs Varnamo | minute=66 | Mjallby=1.02, Draw=36.0, Varnamo=1.45
+2026-03-07 | Cyprus (W) vs Romania (W) | minute=66 | Cyprus (W)=110.0, Draw=100.0, Romania (W)=-
+2026-03-07 | ES Metlaoui vs Olympique De Beja | minute=66 | ES Metlaoui=2.2, Draw=2.26, Olympique De Beja=6.4
+2026-03-07 | BFC Daugavpils vs SC Grobina | minute=68 | BFC Daugavpils=14.5, Draw=5.5, SC Grobina=1.25
+2026-03-07 | Prachuap vs Muangthong Utd | minute=62 | Prachuap=1.04, Draw=18.0, Muangthong Utd=90.0
+2026-03-07 | FK Backa Topola vs Zeleznicar Pancevo | minute=67 | FK Backa Topola=3.15, Draw=1.74, Zeleznicar Pancevo=7.4
+2026-03-07 | IK Brage vs Orebro | minute=66 | IK Brage=1.06, Draw=19.0, Orebro=75.0
+2026-03-07 | Bosnia (W) vs Liechtenstein (W) | minute=83 | Bosnia (W)=-, Draw=100.0, Liechtenstein (W)=150.0
+2026-03-07 | Chanthaburi FC vs Bangkok FC | minute=80 | Chanthaburi FC=23.0, Draw=4.2, Bangkok FC=1.32
+2026-03-07 | SV Darmstadt vs Holstein Kiel | minute=79 | SV Darmstadt=-, Draw=80.0, Holstein Kiel=300.0
+2026-03-07 | Paderborn vs Braunschweig | minute=81 | Paderborn=5.5, Draw=2.76, Braunschweig=2.16
+2026-03-07 | KF Drita vs KF Prishtina E Re | minute=83 | KF Drita=1.01, Draw=50.0, KF Prishtina E Re=50.0
+2026-03-07 | Nurnberg vs Fortuna Dusseldorf | minute=81 | Nurnberg=26.0, Draw=4.7, Fortuna Dusseldorf=1.31
+2026-03-07 | Hammarby vs Osters | minute=83 | Hammarby=-, Draw=120.0, Osters=150.0
+2026-03-07 | Malut United vs PSM Makassar | minute=82 | Malut United=1.18, Draw=6.4, PSM Makassar=44.0
+2026-03-07 | Panevezys vs Hegelmann Litauen | minute=85 | Panevezys=1.1, Draw=7.6, Hegelmann Litauen=38.0
+2026-03-07 | US Monastirienne vs Club Sportif Sfaxien | minute=79 | US Monastirienne=5.5, Draw=1.46, Club Sportif Sfaxien=5.5
+2026-03-07 | Kalmar FF vs Orgryte | minute=83 | Kalmar FF=50.0, Draw=11.5, Orgryte=1.06
+2026-03-07 | Sportive de Tunis vs Avenir S Marsa | minute=77 | Sportive de Tunis=1.02, Draw=18.0, Avenir S Marsa=160.0
+2026-03-07 | Mjallby vs Varnamo | minute=80 | Mjallby=1.11, Draw=8.6, Varnamo=28.0
+2026-03-07 | Cyprus (W) vs Romania (W) | minute=81 | Cyprus (W)=150.0, Draw=100.0, Romania (W)=-
+2026-03-07 | ES Metlaoui vs Olympique De Beja | minute=81 | ES Metlaoui=3.65, Draw=1.49, Olympique De Beja=9.8
+2026-03-07 | BFC Daugavpils vs SC Grobina | minute=82 | BFC Daugavpils=27.0, Draw=7.4, SC Grobina=1.16
+2026-03-07 | Prachuap vs Muangthong Utd | minute=77 | Prachuap=1.02, Draw=28.0, Muangthong Utd=65.0
+2026-03-07 | FK Backa Topola vs Zeleznicar Pancevo | minute=82 | FK Backa Topola=4.1, Draw=1.5, Zeleznicar Pancevo=9.6
+2026-03-07 | IK Brage vs Orebro | minute=80 | IK Brage=1.25, Draw=5.3, Orebro=29.0
+2026-03-07 | Mansfield vs Arsenal | minute=67 | Mansfield=12.0, Draw=3.4, Arsenal=1.59
+2026-03-07 | FK Suduva vs TransINVEST Vilnius | minute=65 | FK Suduva=1.36, Draw=4.3, TransINVEST Vilnius=18.0
+2026-03-07 | Blackburn vs Portsmouth | minute=60 | Blackburn=4.1, Draw=1.94, Portsmouth=4.1
+2026-03-07 | Huddersfield vs Rotherham | minute=60 | Huddersfield=2.6, Draw=2.2, Rotherham=6.0
+2026-03-07 | VSK Aarhus FC vs Thisted | minute=60 | VSK Aarhus FC=3.05, Draw=2.04, Thisted=4.6
+2026-03-07 | US Monastirienne vs Club Sportif Sfaxien | minute=90 | US Monastirienne=1.01, Draw=1.01, Club Sportif Sfaxien=1.02
+2026-03-07 | Huddersfield vs Rotherham | minute=90 | Huddersfield=1.08, Draw=10.0, Rotherham=130.0
+2026-03-07 | Boreham Wood vs Brackley Town | minute=90 | Boreham Wood=1.01, Draw=26.0, Brackley Town=5.0
+2026-03-07 | Lion City Sailors FC vs Geylang International | minute=84 | Lion City Sailors FC=-, Draw=50.0, Geylang International=50.0
+2026-03-07 | Salford City vs Barnet | minute=89 | Salford City=-, Draw=50.0, Barnet=100.0
+2026-03-07 | Blackburn vs Portsmouth | minute=90 | Blackburn=220.0, Draw=21.0, Portsmouth=1.04
+2026-03-07 | VSK Aarhus FC vs Thisted | minute=90 | VSK Aarhus FC=6.8, Draw=1.22, Thisted=8.8
+2026-03-07 | Finland (W) vs Latvia (W) | minute=90 | Finland (W)=-, Draw=100.0, Latvia (W)=100.0
+2026-03-07 | Cardiff vs Lincoln | minute=90 | Cardiff=220.0, Draw=55.0, Lincoln=1.01
+2026-03-07 | Hull vs Millwall | minute=90 | Hull=1000.0, Draw=100.0, Millwall=-
+2026-03-07 | Nakhon Ratchasima vs Buriram Utd | minute=82 | Nakhon Ratchasima=50.0, Draw=50.0, Buriram Utd=-
+2026-03-07 | Parnu JK Vaprus vs Paide Linnameeskond | minute=88 | Parnu JK Vaprus=1.06, Draw=4.9, Paide Linnameeskond=18.5
+2026-03-07 | Grimsby vs Bromley | minute=87 | Grimsby=5.4, Draw=1.42, Bromley=7.6
+2026-03-07 | England (W) vs Iceland (W) | minute=90 | England (W)=-, Draw=100.0, Iceland (W)=110.0
+2026-03-07 | FC Metaloglobus Bucuresti vs UTA Arad | minute=90 | FC Metaloglobus Bucuresti=18.0, Draw=1.15, UTA Arad=8.6
+2026-03-07 | Zaglebie Sosnowiec vs NKP Podhale Nowy Targ | minute=88 | Zaglebie Sosnowiec=1.12, Draw=6.8, NKP Podhale Nowy Targ=50.0
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=61 | Uniao Suzano AC=29.0, Draw=5.5, Paulista Jundiai=1.22
+2026-03-07 | Middelfart vs Hvidovre | minute=64 | Middelfart=1.72, Draw=3.15, Hvidovre=7.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=63 | Hillerod Fodbold=9.0, Draw=3.55, B93 Copenhagen=1.61
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=61 | Wehen Wiesbaden=1.14, Draw=10.0, Stuttgart II=34.0
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=61 | Hoffenheim II=11.5, Draw=4.1, Rot-Weiss Essen=1.47
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=62 | CS Tunari=11.0, Draw=3.5, Acs Dumbravita=1.53
+2026-03-07 | ESTAC Troyes vs Clermont | minute=63 | ESTAC Troyes=6.4, Draw=3.1, Clermont=1.87
+2026-03-07 | Queens Park vs Airdrieonians | minute=65 | Queens Park=1.36, Draw=4.5, Airdrieonians=17.0
+2026-03-07 | Septemvri vs Cherno More | minute=62 | Septemvri=55.0, Draw=27.0, Cherno More=1.03
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=60 | FK Kabel=4.2, Draw=1.73, SU Dinamo Jug=4.4
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=60 | FK Borac Cacak=3.55, Draw=1.91, Vozdovac=4.3
+2026-03-07 | Cottbus vs Hansa Rostock | minute=63 | Cottbus=3.0, Draw=2.22, Hansa Rostock=4.0
+2026-03-07 | US Monastirienne vs Club Sportif Sfaxien | minute=90 | US Monastirienne=-, Draw=-, Club Sportif Sfaxien=-
+2026-03-07 | Boreham Wood vs Brackley Town | minute=90 | Boreham Wood=-, Draw=-, Brackley Town=-
+2026-03-07 | Lion City Sailors FC vs Geylang International | minute=90 | Lion City Sailors FC=-, Draw=100.0, Geylang International=100.0
+2026-03-07 | Salford City vs Barnet | minute=90 | Salford City=-, Draw=-, Barnet=-
+2026-03-07 | Cardiff vs Lincoln | minute=90 | Cardiff=140.0, Draw=200.0, Lincoln=-
+2026-03-07 | Hull vs Millwall | minute=90 | Hull=-, Draw=-, Millwall=-
+2026-03-07 | Nakhon Ratchasima vs Buriram Utd | minute=90 | Nakhon Ratchasima=150.0, Draw=100.0, Buriram Utd=-
+2026-03-07 | Parnu JK Vaprus vs Paide Linnameeskond | minute=90 | Parnu JK Vaprus=1.03, Draw=16.0, Paide Linnameeskond=30.0
+2026-03-07 | Grimsby vs Bromley | minute=90 | Grimsby=7.6, Draw=1.15, Bromley=10.5
+2026-03-07 | Zaglebie Sosnowiec vs NKP Podhale Nowy Targ | minute=90 | Zaglebie Sosnowiec=1.01, Draw=11.0, NKP Podhale Nowy Targ=300.0
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=69 | Uniao Suzano AC=38.0, Draw=5.8, Paulista Jundiai=1.2
+2026-03-07 | Middelfart vs Hvidovre | minute=72 | Middelfart=6.6, Draw=1.73, Hvidovre=2.88
+2026-03-07 | Basaksehir vs Goztepe | minute=69 | Basaksehir=4.4, Draw=1.96, Goztepe=3.65
+2026-03-07 | Le Mans vs Annecy | minute=68 | Le Mans=-, Draw=44.0, Annecy=5.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=71 | Hillerod Fodbold=14.5, Draw=3.9, B93 Copenhagen=1.45
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=69 | Wehen Wiesbaden=1.47, Draw=3.9, Stuttgart II=11.5
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=69 | Hoffenheim II=3.9, Draw=2.06, Rot-Weiss Essen=3.7
+2026-03-07 | KFUM Oslo vs Tromso | minute=68 | KFUM Oslo=1.46, Draw=3.8, Tromso=15.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=70 | CS Tunari=16.0, Draw=3.85, Acs Dumbravita=1.41
+2026-03-07 | ESTAC Troyes vs Clermont | minute=71 | ESTAC Troyes=8.8, Draw=3.25, Clermont=1.69
+2026-03-07 | Queens Park vs Airdrieonians | minute=73 | Queens Park=1.31, Draw=4.6, Airdrieonians=22.0
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=66 | Bandirmaspor=1.29, Draw=5.0, Istanbulspor=24.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=68 | FK Kabel=4.7, Draw=1.61, SU Dinamo Jug=4.2
+2026-03-07 | Septemvri vs Cherno More | minute=71 | Septemvri=5.0, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=68 | GKS Jastrzebie=26.0, Draw=5.3, Swit Skolwin=1.25
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=67 | FK Borac Cacak=4.0, Draw=1.73, Vozdovac=4.6
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=64 | Corum Belediyespor=1.32, Draw=2.38, Hatayspor=13.0
+2026-03-07 | Osasuna vs Mallorca | minute=65 | Osasuna=32.0, Draw=8.6, Mallorca=1.17
+2026-03-07 | Cottbus vs Hansa Rostock | minute=65 | Cottbus=3.4, Draw=1.95, Hansa Rostock=4.6
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=68 | Erzgebirge=11.5, Draw=3.9, Alemannia Aachen=1.49
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=67 | Schweinfurt=65.0, Draw=26.0, SSV Ulm=1.04
+2026-03-07 | Malut United vs PSM Makassar | minute=90 | Malut United=-, Draw=-, PSM Makassar=-
+2026-03-07 | Parnu JK Vaprus vs Paide Linnameeskond | minute=90 | Parnu JK Vaprus=1.01, Draw=1.01, Paide Linnameeskond=1.01
+2026-03-07 | Grimsby vs Bromley | minute=90 | Grimsby=12.5, Draw=1.05, Bromley=1.01
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=71 | Uniao Suzano AC=38.0, Draw=5.8, Paulista Jundiai=1.2
+2026-03-07 | Middelfart vs Hvidovre | minute=74 | Middelfart=7.2, Draw=1.77, Hvidovre=3.2
+2026-03-07 | Basaksehir vs Goztepe | minute=71 | Basaksehir=1.36, Draw=4.4, Goztepe=21.0
+2026-03-07 | Le Mans vs Annecy | minute=70 | Le Mans=-, Draw=42.0, Annecy=5.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=73 | Hillerod Fodbold=15.5, Draw=3.95, B93 Copenhagen=1.42
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=71 | Wehen Wiesbaden=1.44, Draw=3.95, Stuttgart II=12.5
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=71 | Hoffenheim II=4.1, Draw=2.0, Rot-Weiss Essen=3.55
+2026-03-07 | KFUM Oslo vs Tromso | minute=70 | KFUM Oslo=1.45, Draw=3.85, Tromso=15.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=72 | CS Tunari=16.0, Draw=3.75, Acs Dumbravita=1.41
+2026-03-07 | ESTAC Troyes vs Clermont | minute=73 | ESTAC Troyes=9.4, Draw=3.35, Clermont=1.65
+2026-03-07 | Queens Park vs Airdrieonians | minute=75 | Queens Park=1.3, Draw=4.6, Airdrieonians=23.0
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=68 | Bandirmaspor=1.27, Draw=5.3, Istanbulspor=30.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=70 | FK Kabel=21.0, Draw=5.0, SU Dinamo Jug=1.26
+2026-03-07 | Septemvri vs Cherno More | minute=73 | Septemvri=11.5, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=70 | GKS Jastrzebie=28.0, Draw=5.4, Swit Skolwin=1.23
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=69 | FK Borac Cacak=4.5, Draw=1.71, Vozdovac=4.7
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=66 | Corum Belediyespor=1.03, Draw=1.14, Hatayspor=1.18
+2026-03-07 | Osasuna vs Mallorca | minute=67 | Osasuna=34.0, Draw=9.0, Mallorca=1.15
+2026-03-07 | Cottbus vs Hansa Rostock | minute=67 | Cottbus=3.55, Draw=1.89, Hansa Rostock=4.7
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=70 | Erzgebirge=13.5, Draw=3.9, Alemannia Aachen=1.45
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=69 | Schweinfurt=70.0, Draw=26.0, SSV Ulm=1.03
+2026-03-07 | Mainz vs Stuttgart | minute=72 | Mainz=3.7, Draw=4.1, Stuttgart=2.04
+2026-03-07 | FC Heidenheim vs Hoffenheim | minute=72 | FC Heidenheim=6.0, Draw=4.8, Hoffenheim=1.58
+2026-03-07 | RB Leipzig vs Augsburg | minute=73 | RB Leipzig=1.39, Draw=5.9, Augsburg=8.6
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=79 | Uniao Suzano AC=40.0, Draw=6.6, Paulista Jundiai=1.16
+2026-03-07 | Middelfart vs Hvidovre | minute=82 | Middelfart=5.8, Draw=5.1, Hvidovre=1.16
+2026-03-07 | Basaksehir vs Goztepe | minute=79 | Basaksehir=1.29, Draw=5.0, Goztepe=30.0
+2026-03-07 | Le Mans vs Annecy | minute=78 | Le Mans=-, Draw=100.0, Annecy=1000.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=81 | Hillerod Fodbold=29.0, Draw=4.8, B93 Copenhagen=1.26
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=79 | Wehen Wiesbaden=1.08, Draw=1.01, Stuttgart II=1.45
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=79 | Hoffenheim II=32.0, Draw=5.3, Rot-Weiss Essen=1.26
+2026-03-07 | KFUM Oslo vs Tromso | minute=78 | KFUM Oslo=1.35, Draw=4.2, Tromso=20.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=80 | CS Tunari=34.0, Draw=4.7, Acs Dumbravita=1.23
+2026-03-07 | ESTAC Troyes vs Clermont | minute=81 | ESTAC Troyes=1.14, Draw=7.6, Clermont=85.0
+2026-03-07 | Queens Park vs Airdrieonians | minute=83 | Queens Park=1.19, Draw=5.8, Airdrieonians=50.0
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=76 | Bandirmaspor=1.21, Draw=6.0, Istanbulspor=40.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=78 | FK Kabel=2.64, Draw=32.0, SU Dinamo Jug=1.02
+2026-03-07 | Septemvri vs Cherno More | minute=81 | Septemvri=100.0, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=78 | GKS Jastrzebie=40.0, Draw=6.2, Swit Skolwin=1.18
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=77 | FK Borac Cacak=4.9, Draw=1.55, Vozdovac=5.5
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=74 | Corum Belediyespor=1.04, Draw=21.0, Hatayspor=160.0
+2026-03-07 | Osasuna vs Mallorca | minute=75 | Osasuna=15.5, Draw=8.0, Mallorca=1.18
+2026-03-07 | Cottbus vs Hansa Rostock | minute=76 | Cottbus=4.4, Draw=1.63, Hansa Rostock=5.6
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=78 | Erzgebirge=26.0, Draw=4.7, Alemannia Aachen=1.29
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=77 | Schweinfurt=60.0, Draw=7.2, SSV Ulm=1.16
+2026-03-07 | Kuching FA vs Sabah FA | minute=63 | Kuching FA=1.03, Draw=28.0, Sabah FA=170.0
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=85 | Uniao Suzano AC=30.0, Draw=6.8, Paulista Jundiai=1.15
+2026-03-07 | Middelfart vs Hvidovre | minute=88 | Middelfart=26.0, Draw=7.6, Hvidovre=1.12
+2026-03-07 | Basaksehir vs Goztepe | minute=84 | Basaksehir=1.21, Draw=6.0, Goztepe=65.0
+2026-03-07 | Le Mans vs Annecy | minute=84 | Le Mans=-, Draw=100.0, Annecy=1000.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=87 | Hillerod Fodbold=34.0, Draw=5.3, B93 Copenhagen=1.22
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=85 | Wehen Wiesbaden=1.15, Draw=7.2, Stuttgart II=50.0
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=85 | Hoffenheim II=46.0, Draw=5.9, Rot-Weiss Essen=1.2
+2026-03-07 | KFUM Oslo vs Tromso | minute=83 | KFUM Oslo=1.27, Draw=4.9, Tromso=34.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=86 | CS Tunari=21.0, Draw=5.1, Acs Dumbravita=1.16
+2026-03-07 | ESTAC Troyes vs Clermont | minute=87 | ESTAC Troyes=1.08, Draw=11.5, Clermont=85.0
+2026-03-07 | Queens Park vs Airdrieonians | minute=89 | Queens Park=1.14, Draw=6.8, Airdrieonians=34.0
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=82 | Bandirmaspor=1.15, Draw=7.6, Istanbulspor=55.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=83 | FK Kabel=5.0, Draw=34.0, SU Dinamo Jug=1.01
+2026-03-07 | Septemvri vs Cherno More | minute=86 | Septemvri=150.0, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=84 | GKS Jastrzebie=21.0, Draw=6.8, Swit Skolwin=1.12
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=83 | FK Borac Cacak=6.6, Draw=1.32, Vozdovac=6.8
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=80 | Corum Belediyespor=1.02, Draw=34.0, Hatayspor=10.0
+2026-03-07 | Osasuna vs Mallorca | minute=80 | Osasuna=48.0, Draw=9.0, Mallorca=1.14
+2026-03-07 | Cottbus vs Hansa Rostock | minute=81 | Cottbus=5.5, Draw=1.47, Hansa Rostock=6.4
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=84 | Erzgebirge=1.33, Draw=22.0, Alemannia Aachen=1.02
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=83 | Schweinfurt=7.0, Draw=1.67, SSV Ulm=3.15
+2026-03-07 | Kuching FA vs Sabah FA | minute=69 | Kuching FA=1.02, Draw=28.0, Sabah FA=50.0
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=60 | FK Puchov=2.56, Draw=2.32, MSK Zilina II=4.6
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=87 | Uniao Suzano AC=19.5, Draw=7.2, Paulista Jundiai=1.09
+2026-03-07 | Middelfart vs Hvidovre | minute=90 | Middelfart=1.33, Draw=11.0, Hvidovre=1.09
+2026-03-07 | Basaksehir vs Goztepe | minute=87 | Basaksehir=1.18, Draw=6.6, Goztepe=60.0
+2026-03-07 | Le Mans vs Annecy | minute=86 | Le Mans=-, Draw=100.0, Annecy=1000.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=89 | Hillerod Fodbold=38.0, Draw=6.6, B93 Copenhagen=1.19
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=87 | Wehen Wiesbaden=1.14, Draw=7.2, Stuttgart II=50.0
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=87 | Hoffenheim II=38.0, Draw=5.7, Rot-Weiss Essen=1.23
+2026-03-07 | KFUM Oslo vs Tromso | minute=86 | KFUM Oslo=1.2, Draw=5.3, Tromso=46.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=88 | CS Tunari=21.0, Draw=3.55, Acs Dumbravita=1.14
+2026-03-07 | ESTAC Troyes vs Clermont | minute=89 | ESTAC Troyes=1.07, Draw=13.0, Clermont=55.0
+2026-03-07 | Queens Park vs Airdrieonians | minute=90 | Queens Park=1.09, Draw=9.6, Airdrieonians=150.0
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=84 | Bandirmaspor=1.13, Draw=8.4, Istanbulspor=75.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=86 | FK Kabel=11.5, Draw=34.0, SU Dinamo Jug=1.01
+2026-03-07 | Septemvri vs Cherno More | minute=89 | Septemvri=100.0, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=86 | GKS Jastrzebie=22.0, Draw=6.2, Swit Skolwin=1.1
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=85 | FK Borac Cacak=6.6, Draw=1.3, Vozdovac=7.2
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=82 | Corum Belediyespor=1.02, Draw=34.0, Hatayspor=10.0
+2026-03-07 | Osasuna vs Mallorca | minute=83 | Osasuna=50.0, Draw=10.0, Mallorca=1.13
+2026-03-07 | Cottbus vs Hansa Rostock | minute=84 | Cottbus=5.7, Draw=1.4, Hansa Rostock=7.2
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=86 | Erzgebirge=5.5, Draw=34.0, Alemannia Aachen=1.01
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=85 | Schweinfurt=6.8, Draw=1.66, SSV Ulm=2.96
+2026-03-07 | Kuching FA vs Sabah FA | minute=71 | Kuching FA=1.01, Draw=26.0, Sabah FA=26.0
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=62 | FK Puchov=2.48, Draw=2.26, MSK Zilina II=4.7
+2026-03-07 | Dunav Ruse vs Ludogorets Razgrad B | minute=62 | Dunav Ruse=1.7, Draw=2.76, Ludogorets Razgrad B=11.5
+2026-03-07 | Arzignanochiampo vs Lecco | minute=61 | Arzignanochiampo=4.2, Draw=1.76, Lecco=4.3
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=61 | Inter Milan (Res)=2.68, Draw=2.02, Albinoleffe=4.7
+2026-03-07 | Uniao Suzano AC vs Paulista Jundiai | minute=90 | Uniao Suzano AC=9.6, Draw=6.4, Paulista Jundiai=1.04
+2026-03-07 | Middelfart vs Hvidovre | minute=90 | Middelfart=18.5, Draw=20.0, Hvidovre=1.04
+2026-03-07 | Basaksehir vs Goztepe | minute=90 | Basaksehir=1.13, Draw=1.01, Goztepe=5.0
+2026-03-07 | Le Mans vs Annecy | minute=89 | Le Mans=-, Draw=1000.0, Annecy=1000.0
+2026-03-07 | Hillerod Fodbold vs B93 Copenhagen | minute=90 | Hillerod Fodbold=65.0, Draw=7.6, B93 Copenhagen=1.05
+2026-03-07 | Wehen Wiesbaden vs Stuttgart II | minute=90 | Wehen Wiesbaden=1.1, Draw=9.2, Stuttgart II=24.0
+2026-03-07 | Hoffenheim II vs Rot-Weiss Essen | minute=90 | Hoffenheim II=28.0, Draw=8.0, Rot-Weiss Essen=1.12
+2026-03-07 | KFUM Oslo vs Tromso | minute=89 | KFUM Oslo=1.2, Draw=5.9, Tromso=38.0
+2026-03-07 | CS Tunari vs Acs Dumbravita | minute=90 | CS Tunari=1.31, Draw=1.03, Acs Dumbravita=2.36
+2026-03-07 | ESTAC Troyes vs Clermont | minute=90 | ESTAC Troyes=1.07, Draw=9.0, Clermont=150.0
+2026-03-07 | Queens Park vs Airdrieonians | minute=90 | Queens Park=-, Draw=-, Airdrieonians=-
+2026-03-07 | Bandirmaspor vs Istanbulspor | minute=88 | Bandirmaspor=1.09, Draw=9.0, Istanbulspor=50.0
+2026-03-07 | FK Kabel vs SU Dinamo Jug | minute=89 | FK Kabel=11.5, Draw=9.2, SU Dinamo Jug=1.01
+2026-03-07 | Septemvri vs Cherno More | minute=90 | Septemvri=100.0, Draw=100.0, Cherno More=-
+2026-03-07 | GKS Jastrzebie vs Swit Skolwin | minute=89 | GKS Jastrzebie=20.0, Draw=1.01, Swit Skolwin=1.06
+2026-03-07 | FK Borac Cacak vs Vozdovac | minute=88 | FK Borac Cacak=8.2, Draw=1.25, Vozdovac=8.8
+2026-03-07 | Corum Belediyespor vs Hatayspor | minute=86 | Corum Belediyespor=1.01, Draw=10.0, Hatayspor=10.0
+2026-03-07 | Osasuna vs Mallorca | minute=86 | Osasuna=1.01, Draw=34.0, Mallorca=1.02
+2026-03-07 | Cottbus vs Hansa Rostock | minute=87 | Cottbus=6.6, Draw=1.33, Hansa Rostock=8.6
+2026-03-07 | Erzgebirge vs Alemannia Aachen | minute=89 | Erzgebirge=150.0, Draw=100.0, Alemannia Aachen=-
+2026-03-07 | Schweinfurt vs SSV Ulm | minute=88 | Schweinfurt=9.0, Draw=1.36, SSV Ulm=4.5
+2026-03-07 | Kuching FA vs Sabah FA | minute=74 | Kuching FA=1.02, Draw=36.0, Sabah FA=85.0
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=65 | FK Puchov=2.64, Draw=2.18, MSK Zilina II=4.9
+2026-03-07 | Dunav Ruse vs Ludogorets Razgrad B | minute=60 | Dunav Ruse=1.8, Draw=2.48, Ludogorets Razgrad B=11.0
+2026-03-07 | Austria Wien (A) vs WSC Hertha Wels | minute=64 | Austria Wien (A)=1.31, Draw=4.6, WSC Hertha Wels=20.0
+2026-03-07 | Spartak Pleven vs Chernomorets Bourgas | minute=61 | Spartak Pleven=18.5, Draw=4.5, Chernomorets Bourgas=1.31
+2026-03-07 | Novara vs Pergolettese | minute=63 | Novara=2.82, Draw=2.0, Pergolettese=6.0
+2026-03-07 | Persita Tangerang vs Madura Utd | minute=62 | Persita Tangerang=-, Draw=50.0, Madura Utd=190.0
+2026-03-07 | Pusamania Borneo FC vs Persebaya Surabaya | minute=63 | Pusamania Borneo FC=1.04, Draw=18.0, Persebaya Surabaya=55.0
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=60 | Inter Milan (Res)=2.64, Draw=1.93, Albinoleffe=5.4
+2026-03-07 | Osasuna vs Mallorca | minute=90 | Osasuna=9.2, Draw=1.2, Mallorca=15.0
+2026-03-07 | Kuching FA vs Sabah FA | minute=86 | Kuching FA=1.01, Draw=50.0, Sabah FA=110.0
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=77 | FK Puchov=3.35, Draw=1.64, MSK Zilina II=6.6
+2026-03-07 | Dunav Ruse vs Ludogorets Razgrad B | minute=72 | Dunav Ruse=2.2, Draw=1.9, Ludogorets Razgrad B=11.5
+2026-03-07 | Austria Wien (A) vs WSC Hertha Wels | minute=75 | Austria Wien (A)=1.2, Draw=6.0, WSC Hertha Wels=50.0
+2026-03-07 | Spartak Pleven vs Chernomorets Bourgas | minute=73 | Spartak Pleven=34.0, Draw=5.0, Chernomorets Bourgas=1.24
+2026-03-07 | Novara vs Pergolettese | minute=74 | Novara=3.5, Draw=1.65, Pergolettese=6.6
+2026-03-07 | Arzignanochiampo vs Lecco | minute=71 | Arzignanochiampo=34.0, Draw=5.1, Lecco=1.25
+2026-03-07 | Persita Tangerang vs Madura Utd | minute=74 | Persita Tangerang=-, Draw=100.0, Madura Utd=130.0
+2026-03-07 | Giana Erminio vs LR Vicenza Virtus | minute=70 | Giana Erminio=40.0, Draw=7.0, LR Vicenza Virtus=1.15
+2026-03-07 | SSD Dolomiti Bellunesi vs AC Ospitaletto | minute=66 | SSD Dolomiti Bellunesi=1.05, Draw=12.5, AC Ospitaletto=20.0
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=71 | Inter Milan (Res)=3.3, Draw=1.64, Albinoleffe=6.2
+2026-03-07 | Pusamania Borneo FC vs Persebaya Surabaya | minute=74 | Pusamania Borneo FC=-, Draw=3.5, Persebaya Surabaya=3.5
+2026-03-07 | OFK Banik Lehota vs Malzenice | minute=71 | OFK Banik Lehota=32.0, Draw=5.9, Malzenice=1.19
+2026-03-07 | Lokomotiv GO vs Hebar | minute=71 | Lokomotiv GO=1.25, Draw=4.8, Hebar=23.0
+2026-03-07 | A.C. Trento S.C.S.D. vs SS Virtus Verona 1921 | minute=72 | A.C. Trento S.C.S.D.=1.22, Draw=5.8, SS Virtus Verona 1921=34.0
+2026-03-07 | Hungary (W) vs Azerbaijan (W) | minute=69 | Hungary (W)=1.04, Draw=22.0, Azerbaijan (W)=44.0
+2026-03-07 | H Slavia Kromeriz vs FC Sellier & Bellot Vlasim | minute=68 | H Slavia Kromeriz=3.55, Draw=1.81, FC Sellier & Bellot Vlasim=5.0
+2026-03-07 | Obolon-Brovar Kiev vs Kryvbas Krivyi Rih | minute=68 | Obolon-Brovar Kiev=1.01, Draw=1.01, Kryvbas Krivyi Rih=1.01
+2026-03-07 | Olympiakos Nicosia FC vs Ethnikos Achnas | minute=75 | Olympiakos Nicosia FC=2.14, Draw=3.4, Ethnikos Achnas=3.75
+2026-03-07 | Kuching FA vs Sabah FA | minute=90 | Kuching FA=-, Draw=100.0, Sabah FA=130.0
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=83 | FK Puchov=4.4, Draw=1.37, MSK Zilina II=8.2
+2026-03-07 | Dunav Ruse vs Ludogorets Razgrad B | minute=78 | Dunav Ruse=2.34, Draw=1.93, Ludogorets Razgrad B=16.5
+2026-03-07 | Austria Wien (A) vs WSC Hertha Wels | minute=82 | Austria Wien (A)=1.13, Draw=8.0, WSC Hertha Wels=65.0
+2026-03-07 | Spartak Pleven vs Chernomorets Bourgas | minute=80 | Spartak Pleven=15.0, Draw=5.5, Chernomorets Bourgas=1.21
+2026-03-07 | Novara vs Pergolettese | minute=81 | Novara=4.5, Draw=1.42, Pergolettese=8.8
+2026-03-07 | Arzignanochiampo vs Lecco | minute=78 | Arzignanochiampo=4.2, Draw=5.1, Lecco=1.12
+2026-03-07 | Persita Tangerang vs Madura Utd | minute=80 | Persita Tangerang=-, Draw=100.0, Madura Utd=100.0
+2026-03-07 | Giana Erminio vs LR Vicenza Virtus | minute=77 | Giana Erminio=1.5, Draw=1.5, LR Vicenza Virtus=1.01
+2026-03-07 | SSD Dolomiti Bellunesi vs AC Ospitaletto | minute=72 | SSD Dolomiti Bellunesi=1.03, Draw=18.0, AC Ospitaletto=110.0
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=78 | Inter Milan (Res)=3.7, Draw=4.2, Albinoleffe=1.26
+2026-03-07 | Pusamania Borneo FC vs Persebaya Surabaya | minute=81 | Pusamania Borneo FC=-, Draw=60.0, Persebaya Surabaya=100.0
+2026-03-07 | OFK Banik Lehota vs Malzenice | minute=78 | OFK Banik Lehota=46.0, Draw=6.4, Malzenice=1.16
+2026-03-07 | Lokomotiv GO vs Hebar | minute=78 | Lokomotiv GO=5.3, Draw=1.42, Hebar=6.2
+2026-03-07 | A.C. Trento S.C.S.D. vs SS Virtus Verona 1921 | minute=78 | A.C. Trento S.C.S.D.=1.01, Draw=1.01, SS Virtus Verona 1921=1.01
+2026-03-07 | Hungary (W) vs Azerbaijan (W) | minute=76 | Hungary (W)=1.03, Draw=27.0, Azerbaijan (W)=28.0
+2026-03-07 | H Slavia Kromeriz vs FC Sellier & Bellot Vlasim | minute=75 | H Slavia Kromeriz=4.4, Draw=1.6, FC Sellier & Bellot Vlasim=5.6
+2026-03-07 | Obolon-Brovar Kiev vs Kryvbas Krivyi Rih | minute=75 | Obolon-Brovar Kiev=1.96, Draw=1.52, Kryvbas Krivyi Rih=1.97
+2026-03-07 | Korona Kielce vs Nieciecza | minute=63 | Korona Kielce=1.23, Draw=5.5, Nieciecza=11.0
+2026-03-07 | Olympiakos Nicosia FC vs Ethnikos Achnas | minute=80 | Olympiakos Nicosia FC=2.12, Draw=3.25, Ethnikos Achnas=3.3
+2026-03-07 | FK Puchov vs MSK Zilina II | minute=90 | FK Puchov=8.4, Draw=1.12, MSK Zilina II=6.4
+2026-03-07 | Dunav Ruse vs Ludogorets Razgrad B | minute=87 | Dunav Ruse=2.86, Draw=1.5, Ludogorets Razgrad B=9.6
+2026-03-07 | Austria Wien (A) vs WSC Hertha Wels | minute=90 | Austria Wien (A)=1.09, Draw=7.6, WSC Hertha Wels=55.0
+2026-03-07 | Spartak Pleven vs Chernomorets Bourgas | minute=88 | Spartak Pleven=1.33, Draw=1.01, Chernomorets Bourgas=1.16
+2026-03-07 | Novara vs Pergolettese | minute=90 | Novara=6.4, Draw=1.15, Pergolettese=1.01
+2026-03-07 | Arzignanochiampo vs Lecco | minute=87 | Arzignanochiampo=1.01, Draw=6.8, Lecco=1.1
+2026-03-07 | Persita Tangerang vs Madura Utd | minute=89 | Persita Tangerang=-, Draw=50.0, Madura Utd=100.0
+2026-03-07 | Giana Erminio vs LR Vicenza Virtus | minute=85 | Giana Erminio=36.0, Draw=3.8, LR Vicenza Virtus=-
+2026-03-07 | SSD Dolomiti Bellunesi vs AC Ospitaletto | minute=81 | SSD Dolomiti Bellunesi=1.02, Draw=32.0, AC Ospitaletto=60.0
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=86 | Inter Milan (Res)=4.0, Draw=1.01, Albinoleffe=1.08
+2026-03-07 | Pusamania Borneo FC vs Persebaya Surabaya | minute=90 | Pusamania Borneo FC=-, Draw=50.0, Persebaya Surabaya=130.0
+2026-03-07 | OFK Banik Lehota vs Malzenice | minute=87 | OFK Banik Lehota=1.5, Draw=1.5, Malzenice=-
+2026-03-07 | Lokomotiv GO vs Hebar | minute=87 | Lokomotiv GO=1.33, Draw=1.25, Hebar=1.02
+2026-03-07 | A.C. Trento S.C.S.D. vs SS Virtus Verona 1921 | minute=87 | A.C. Trento S.C.S.D.=1.11, Draw=7.8, SS Virtus Verona 1921=40.0
+2026-03-07 | Hungary (W) vs Azerbaijan (W) | minute=84 | Hungary (W)=1.02, Draw=34.0, Azerbaijan (W)=22.0
+2026-03-07 | H Slavia Kromeriz vs FC Sellier & Bellot Vlasim | minute=84 | H Slavia Kromeriz=5.6, Draw=1.35, FC Sellier & Bellot Vlasim=7.6
+2026-03-07 | Obolon-Brovar Kiev vs Kryvbas Krivyi Rih | minute=84 | Obolon-Brovar Kiev=7.8, Draw=1.36, Kryvbas Krivyi Rih=3.25
+2026-03-07 | Korona Kielce vs Nieciecza | minute=71 | Korona Kielce=1.24, Draw=5.8, Nieciecza=32.0
+2026-03-07 | Olympiakos Nicosia FC vs Ethnikos Achnas | minute=89 | Olympiakos Nicosia FC=2.14, Draw=3.15, Ethnikos Achnas=4.1
+2026-03-07 | Bohemians 1905 vs Slovan Liberec | minute=60 | Bohemians 1905=3.75, Draw=2.08, Slovan Liberec=3.75
+2026-03-07 | Sudtirol vs Entella | minute=60 | Sudtirol=3.0, Draw=1.86, Entella=7.2
+2026-03-07 | Alashkert vs Ararat Armenia | minute=64 | Alashkert=3.0, Draw=1.9, Ararat Armenia=2.18
+2026-03-07 | HNK Orijent 1919 vs NK Dubrava Zagreb | minute=63 | HNK Orijent 1919=5.2, Draw=1.81, NK Dubrava Zagreb=3.0
+2026-03-07 | Avellino vs Padova | minute=62 | Avellino=2.46, Draw=2.24, Padova=6.4
+2026-03-07 | Teplice vs Dukla Prague | minute=62 | Teplice=2.7, Draw=2.04, Dukla Prague=6.8
+2026-03-07 | Arzignanochiampo vs Lecco | minute=90 | Arzignanochiampo=-, Draw=-, Lecco=-
+2026-03-07 | Giana Erminio vs LR Vicenza Virtus | minute=90 | Giana Erminio=11.5, Draw=1.01, LR Vicenza Virtus=-
+2026-03-07 | SSD Dolomiti Bellunesi vs AC Ospitaletto | minute=90 | SSD Dolomiti Bellunesi=-, Draw=12.0, AC Ospitaletto=36.0
+2026-03-07 | Inter Milan (Res) vs Albinoleffe | minute=90 | Inter Milan (Res)=2.0, Draw=5.5, Albinoleffe=1.02
+2026-03-07 | OFK Banik Lehota vs Malzenice | minute=90 | OFK Banik Lehota=11.5, Draw=1.01, Malzenice=-
+2026-03-07 | Lokomotiv GO vs Hebar | minute=90 | Lokomotiv GO=8.0, Draw=6.0, Hebar=1.01
+2026-03-07 | A.C. Trento S.C.S.D. vs SS Virtus Verona 1921 | minute=90 | A.C. Trento S.C.S.D.=1.04, Draw=1.01, SS Virtus Verona 1921=1.01
+2026-03-07 | Hungary (W) vs Azerbaijan (W) | minute=90 | Hungary (W)=1.01, Draw=50.0, Azerbaijan (W)=60.0
+2026-03-07 | H Slavia Kromeriz vs FC Sellier & Bellot Vlasim | minute=90 | H Slavia Kromeriz=1.01, Draw=1.01, FC Sellier & Bellot Vlasim=1.06
+2026-03-07 | Obolon-Brovar Kiev vs Kryvbas Krivyi Rih | minute=90 | Obolon-Brovar Kiev=14.5, Draw=1.17, Kryvbas Krivyi Rih=4.5
+2026-03-07 | Korona Kielce vs Nieciecza | minute=80 | Korona Kielce=1.21, Draw=5.9, Nieciecza=46.0
+2026-03-07 | ES Ben Aknoun vs MC El Bayadh | minute=66 | ES Ben Aknoun=1.22, Draw=5.8, MC El Bayadh=36.0
+2026-03-07 | ES Mostaganem vs MC Alger | minute=64 | ES Mostaganem=120.0, Draw=50.0, MC Alger=1.01
+2026-03-07 | Sarajevo vs Rudar Prijedor | minute=66 | Sarajevo=1.02, Draw=21.0, Rudar Prijedor=1.01
+2026-03-07 | Alashkert vs Ararat Armenia | minute=62 | Alashkert=1.3, Draw=2.9, Ararat Armenia=3.85
+2026-03-07 | Kerala Blasters FC vs Chennaiyin FC | minute=66 | Kerala Blasters FC=2.5, Draw=2.96, Chennaiyin FC=1.33
+2026-03-07 | Cagliari vs Como | minute=64 | Cagliari=8.4, Draw=2.04, Como=2.52
+2026-03-07 | Landskrona vs Sandvikens | minute=68 | Landskrona=1.31, Draw=4.8, Sandvikens=18.0
+2026-03-07 | GAIS vs Norrkoping | minute=67 | GAIS=-, Draw=6.0, Norrkoping=220.0
+2026-03-07 | N Macedonia (W) vs Andorra (W) | minute=65 | N Macedonia (W)=1.01, Draw=26.0, Andorra (W)=29.0
+2026-03-07 | Kuala Lumpur vs Melaka FC | minute=63 | Kuala Lumpur=1.11, Draw=10.5, Melaka FC=42.0
+2026-03-07 | Slovacko vs Mlada Boleslav | minute=68 | Slovacko=17.5, Draw=4.2, Mlada Boleslav=1.39
+2026-03-07 | Bohemians 1905 vs Slovan Liberec | minute=66 | Bohemians 1905=8.6, Draw=1.93, Slovan Liberec=2.6
+2026-03-07 | Negeri Sembilan vs Pulau Pinang | minute=65 | Negeri Sembilan=3.25, Draw=2.0, Pulau Pinang=4.4
+2026-03-07 | Sloga Doboj vs Zeljeznicar | minute=66 | Sloga Doboj=10.5, Draw=3.75, Zeljeznicar=1.35
+2026-03-07 | HNK Gorica vs Slaven Belupo | minute=66 | HNK Gorica=4.1, Draw=1.88, Slaven Belupo=4.2
+2026-03-07 | Spezia vs AC Monza | minute=66 | Spezia=1.25, Draw=5.6, AC Monza=32.0
+2026-03-07 | Sudtirol vs Entella | minute=67 | Sudtirol=3.2, Draw=1.7, Entella=9.2
+2026-03-07 | HNK Orijent 1919 vs NK Dubrava Zagreb | minute=65 | HNK Orijent 1919=6.4, Draw=1.7, NK Dubrava Zagreb=3.6
+2026-03-07 | NK Jarun vs NK Croatia Zmijavci | minute=67 | NK Jarun=-, Draw=3.8, NK Croatia Zmijavci=50.0
+2026-03-07 | Liepajas Metalurgs vs FK Riga | minute=68 | Liepajas Metalurgs=1.71, Draw=3.25, FK Riga=7.8
+2026-03-07 | Avellino vs Padova | minute=63 | Avellino=2.8, Draw=1.95, Padova=7.4
+2026-03-07 | FK Javor Ivanjica vs Cukaricki | minute=65 | FK Javor Ivanjica=1.4, Draw=4.1, Cukaricki=16.5
+2026-03-07 | Teplice vs Dukla Prague | minute=64 | Teplice=3.0, Draw=1.81, Dukla Prague=7.6
+2026-03-07 | Portimonense vs Pacos Ferreira | minute=63 | Portimonense=3.65, Draw=2.08, Pacos Ferreira=3.8
+2026-03-07 | Olympiakos Nicosia FC vs Ethnikos Achnas | minute=90 | Olympiakos Nicosia FC=2.22, Draw=2.84, Ethnikos Achnas=4.1
+2026-03-07 | Spartak Pleven vs Chernomorets Bourgas | minute=90 | Spartak Pleven=-, Draw=-, Chernomorets Bourgas=-
+2026-03-07 | Novara vs Pergolettese | minute=90 | Novara=-, Draw=-, Pergolettese=-
+2026-03-07 | Korona Kielce vs Nieciecza | minute=90 | Korona Kielce=1.12, Draw=8.0, Nieciecza=70.0
+2026-03-07 | ES Ben Aknoun vs MC El Bayadh | minute=77 | ES Ben Aknoun=1.17, Draw=6.6, MC El Bayadh=60.0
+2026-03-07 | ES Mostaganem vs MC Alger | minute=75 | ES Mostaganem=1.33, Draw=1.33, MC Alger=-
+2026-03-07 | Sarajevo vs Rudar Prijedor | minute=77 | Sarajevo=1.02, Draw=1.01, Rudar Prijedor=1.01
+2026-03-07 | Alashkert vs Ararat Armenia | minute=73 | Alashkert=1.25, Draw=3.0, Ararat Armenia=4.4
+2026-03-07 | Kerala Blasters FC vs Chennaiyin FC | minute=77 | Kerala Blasters FC=6.0, Draw=3.5, Chennaiyin FC=1.33
+2026-03-07 | Cagliari vs Como | minute=75 | Cagliari=10.0, Draw=1.69, Como=3.2
+2026-03-07 | Landskrona vs Sandvikens | minute=79 | Landskrona=1.2, Draw=6.2, Sandvikens=42.0
+2026-03-07 | GAIS vs Norrkoping | minute=78 | GAIS=-, Draw=2.02, Norrkoping=2.02
+2026-03-07 | N Macedonia (W) vs Andorra (W) | minute=76 | N Macedonia (W)=1.01, Draw=26.0, Andorra (W)=26.0
+2026-03-07 | Kuala Lumpur vs Melaka FC | minute=74 | Kuala Lumpur=1.1, Draw=9.4, Melaka FC=44.0
+2026-03-07 | Slovacko vs Mlada Boleslav | minute=79 | Slovacko=4.5, Draw=1.49, Mlada Boleslav=4.8
+2026-03-07 | Bohemians 1905 vs Slovan Liberec | minute=78 | Bohemians 1905=10.5, Draw=1.6, Slovan Liberec=3.3
+2026-03-07 | Negeri Sembilan vs Pulau Pinang | minute=77 | Negeri Sembilan=3.7, Draw=1.71, Pulau Pinang=5.4
+2026-03-07 | Sloga Doboj vs Zeljeznicar | minute=77 | Sloga Doboj=1.01, Draw=1.01, Zeljeznicar=1.02
+2026-03-07 | HNK Gorica vs Slaven Belupo | minute=77 | HNK Gorica=28.0, Draw=5.4, Slaven Belupo=1.27
+2026-03-07 | Spezia vs AC Monza | minute=77 | Spezia=1.2, Draw=6.2, AC Monza=60.0
+2026-03-07 | Sudtirol vs Entella | minute=78 | Sudtirol=23.0, Draw=3.85, Entella=1.42
+2026-03-07 | HNK Orijent 1919 vs NK Dubrava Zagreb | minute=76 | HNK Orijent 1919=40.0, Draw=5.0, NK Dubrava Zagreb=1.14
+2026-03-07 | NK Jarun vs NK Croatia Zmijavci | minute=78 | NK Jarun=-, Draw=12.0, NK Croatia Zmijavci=100.0
+2026-03-07 | Liepajas Metalurgs vs FK Riga | minute=79 | Liepajas Metalurgs=1.47, Draw=3.8, FK Riga=14.5
+2026-03-07 | Avellino vs Padova | minute=74 | Avellino=3.55, Draw=1.6, Padova=9.4
+2026-03-07 | FK Javor Ivanjica vs Cukaricki | minute=76 | FK Javor Ivanjica=1.33, Draw=4.3, Cukaricki=22.0
+2026-03-07 | Teplice vs Dukla Prague | minute=75 | Teplice=4.3, Draw=1.45, Dukla Prague=9.6
+2026-03-07 | Portimonense vs Pacos Ferreira | minute=74 | Portimonense=9.6, Draw=3.45, Pacos Ferreira=1.53
+2026-03-07 | ES Ben Aknoun vs MC El Bayadh | minute=90 | ES Ben Aknoun=1.07, Draw=9.2, MC El Bayadh=1.01
+2026-03-07 | ES Mostaganem vs MC Alger | minute=89 | ES Mostaganem=100.0, Draw=100.0, MC Alger=-
+2026-03-07 | Sarajevo vs Rudar Prijedor | minute=90 | Sarajevo=1.02, Draw=6.8, Rudar Prijedor=20.0
+2026-03-07 | Alashkert vs Ararat Armenia | minute=87 | Alashkert=1.06, Draw=3.75, Ararat Armenia=2.0
+2026-03-07 | Kerala Blasters FC vs Chennaiyin FC | minute=90 | Kerala Blasters FC=6.2, Draw=6.0, Chennaiyin FC=1.04
+2026-03-07 | Cagliari vs Como | minute=90 | Cagliari=210.0, Draw=12.5, Como=1.08
+2026-03-07 | Landskrona vs Sandvikens | minute=90 | Landskrona=7.6, Draw=1.18, Sandvikens=10.0
+2026-03-07 | GAIS vs Norrkoping | minute=90 | GAIS=-, Draw=3.0, Norrkoping=11.5
+2026-03-07 | N Macedonia (W) vs Andorra (W) | minute=90 | N Macedonia (W)=-, Draw=100.0, Andorra (W)=100.0
+2026-03-07 | Kuala Lumpur vs Melaka FC | minute=89 | Kuala Lumpur=2.08, Draw=1.58, Melaka FC=6.2
+2026-03-07 | Slovacko vs Mlada Boleslav | minute=90 | Slovacko=8.8, Draw=1.14, Mlada Boleslav=10.0
+2026-03-07 | Bohemians 1905 vs Slovan Liberec | minute=90 | Bohemians 1905=12.5, Draw=1.13, Slovan Liberec=9.6
+2026-03-07 | Negeri Sembilan vs Pulau Pinang | minute=90 | Negeri Sembilan=1.02, Draw=2.02, Pulau Pinang=2.0
+2026-03-07 | Sloga Doboj vs Zeljeznicar | minute=90 | Sloga Doboj=1.01, Draw=1.01, Zeljeznicar=1.02
+2026-03-07 | HNK Gorica vs Slaven Belupo | minute=90 | HNK Gorica=10.5, Draw=1.15, Slaven Belupo=11.5
+2026-03-07 | Spezia vs AC Monza | minute=90 | Spezia=1.1, Draw=9.8, AC Monza=130.0
+2026-03-07 | Sudtirol vs Entella | minute=90 | Sudtirol=60.0, Draw=9.2, Entella=1.1
+2026-03-07 | HNK Orijent 1919 vs NK Dubrava Zagreb | minute=90 | HNK Orijent 1919=8.6, Draw=1.08, NK Dubrava Zagreb=4.6
+2026-03-07 | NK Jarun vs NK Croatia Zmijavci | minute=90 | NK Jarun=-, Draw=-, NK Croatia Zmijavci=-
+2026-03-07 | Liepajas Metalurgs vs FK Riga | minute=90 | Liepajas Metalurgs=1.1, Draw=7.2, FK Riga=75.0
+2026-03-07 | Avellino vs Padova | minute=88 | Avellino=6.6, Draw=1.25, Padova=17.0
+2026-03-07 | FK Javor Ivanjica vs Cukaricki | minute=90 | FK Javor Ivanjica=1.13, Draw=7.6, Cukaricki=95.0
+2026-03-07 | Teplice vs Dukla Prague | minute=89 | Teplice=8.2, Draw=1.15, Dukla Prague=14.0
+2026-03-07 | Portimonense vs Pacos Ferreira | minute=89 | Portimonense=26.0, Draw=5.0, Pacos Ferreira=1.29
+2026-03-07 | FC Kosice vs Trencin | minute=61 | FC Kosice=1.24, Draw=5.7, Trencin=26.0
+2026-03-07 | Mainz vs Stuttgart | minute=61 | Mainz=1.69, Draw=3.6, Stuttgart=7.0
+2026-03-07 | MFK Skalica vs Tatran Presov | minute=65 | MFK Skalica=1.29, Draw=4.2, Tatran Presov=24.0
+2026-03-07 | ES Ben Aknoun vs MC El Bayadh | minute=90 | ES Ben Aknoun=-, Draw=-, MC El Bayadh=-
+2026-03-07 | Sarajevo vs Rudar Prijedor | minute=90 | Sarajevo=1.01, Draw=2.2, Rudar Prijedor=2.0
+2026-03-07 | Alashkert vs Ararat Armenia | minute=90 | Alashkert=1.06, Draw=1.01, Ararat Armenia=2.0
+2026-03-07 | Kerala Blasters FC vs Chennaiyin FC | minute=90 | Kerala Blasters FC=1.01, Draw=6.2, Chennaiyin FC=1.02
+2026-03-07 | Cagliari vs Como | minute=90 | Cagliari=1000.0, Draw=26.0, Como=1.03
+2026-03-07 | Landskrona vs Sandvikens | minute=90 | Landskrona=1.04, Draw=2.0, Sandvikens=2.0
+2026-03-07 | Kuala Lumpur vs Melaka FC | minute=90 | Kuala Lumpur=4.4, Draw=1.02, Melaka FC=1.25
+2026-03-07 | Negeri Sembilan vs Pulau Pinang | minute=90 | Negeri Sembilan=4.7, Draw=1.01, Pulau Pinang=1.01
+2026-03-07 | Spezia vs AC Monza | minute=90 | Spezia=-, Draw=1.01, AC Monza=6.0
+2026-03-07 | Avellino vs Padova | minute=90 | Avellino=1.02, Draw=38.0, Padova=60.0
+2026-03-07 | FK Javor Ivanjica vs Cukaricki | minute=90 | FK Javor Ivanjica=1.04, Draw=9.2, Cukaricki=1.01
+2026-03-07 | Teplice vs Dukla Prague | minute=90 | Teplice=1.01, Draw=1.03, Dukla Prague=1.01
+2026-03-07 | Portimonense vs Pacos Ferreira | minute=90 | Portimonense=1.32, Draw=7.6, Pacos Ferreira=1.11
+2026-03-07 | FC Kosice vs Trencin | minute=67 | FC Kosice=1.19, Draw=6.6, Trencin=40.0
+2026-03-07 | Mainz vs Stuttgart | minute=67 | Mainz=1.58, Draw=3.65, Stuttgart=9.8
+2026-03-07 | FC Heidenheim vs Hoffenheim | minute=63 | FC Heidenheim=11.5, Draw=2.52, Hoffenheim=-
+2026-03-07 | RB Leipzig vs Augsburg | minute=64 | RB Leipzig=4.8, Draw=3.25, Augsburg=2.04
+2026-03-07 | Wolfsburg vs Hamburger SV | minute=63 | Wolfsburg=13.0, Draw=4.1, Hamburger SV=1.46
+2026-03-07 | Freiburg vs Leverkusen | minute=66 | Freiburg=16.5, Draw=4.3, Leverkusen=1.39
+2026-03-07 | Zemplin vs Slovan Bratislava | minute=66 | Zemplin=5.5, Draw=21.0, Slovan Bratislava=1.03
+2026-03-07 | MFK Skalica vs Tatran Presov | minute=71 | MFK Skalica=1.27, Draw=5.1, Tatran Presov=29.0
+2026-03-07 | ES Mostaganem vs MC Alger | minute=90 | ES Mostaganem=-, Draw=-, MC Alger=-
+2026-03-07 | Bohemians 1905 vs Slovan Liberec | minute=90 | Bohemians 1905=-, Draw=-, Slovan Liberec=-
+2026-03-07 | HNK Gorica vs Slaven Belupo | minute=90 | HNK Gorica=-, Draw=-, Slaven Belupo=-
+2026-03-07 | Sudtirol vs Entella | minute=90 | Sudtirol=-, Draw=-, Entella=-
+2026-03-07 | Sarajevo vs Rudar Prijedor | minute=90 | Sarajevo=1.01, Draw=2.2, Rudar Prijedor=1.01
+2026-03-07 | Alashkert vs Ararat Armenia | minute=90 | Alashkert=1.04, Draw=1.01, Ararat Armenia=2.0
+2026-03-07 | Kerala Blasters FC vs Chennaiyin FC | minute=90 | Kerala Blasters FC=1.01, Draw=1.01, Chennaiyin FC=-
+2026-03-07 | Cagliari vs Como | minute=90 | Cagliari=6.0, Draw=1.14, Como=-
+2026-03-07 | Kuala Lumpur vs Melaka FC | minute=90 | Kuala Lumpur=1.01, Draw=1.01, Melaka FC=1.01
+2026-03-07 | Negeri Sembilan vs Pulau Pinang | minute=90 | Negeri Sembilan=14.0, Draw=1.06, Pulau Pinang=14.0
+2026-03-07 | Avellino vs Padova | minute=90 | Avellino=-, Draw=-, Padova=-
+2026-03-07 | Portimonense vs Pacos Ferreira | minute=90 | Portimonense=14.0, Draw=13.5, Pacos Ferreira=1.06
+2026-03-07 | FC Kosice vs Trencin | minute=74 | FC Kosice=1.19, Draw=6.6, Trencin=42.0
+2026-03-07 | Mainz vs Stuttgart | minute=73 | Mainz=1.54, Draw=3.75, Stuttgart=11.0
+2026-03-07 | FC Heidenheim vs Hoffenheim | minute=73 | FC Heidenheim=110.0, Draw=32.0, Hoffenheim=1.03
+2026-03-07 | RB Leipzig vs Augsburg | minute=73 | RB Leipzig=4.8, Draw=3.25, Augsburg=2.04
+2026-03-07 | Wolfsburg vs Hamburger SV | minute=73 | Wolfsburg=12.0, Draw=4.0, Hamburger SV=1.48
+2026-03-07 | Freiburg vs Leverkusen | minute=73 | Freiburg=17.0, Draw=4.4, Leverkusen=1.39
+2026-03-07 | Zemplin vs Slovan Bratislava | minute=73 | Zemplin=30.0, Draw=6.2, Slovan Bratislava=1.22
+2026-03-07 | MFK Skalica vs Tatran Presov | minute=73 | MFK Skalica=1.25, Draw=5.2, Tatran Presov=30.0
+2026-03-07 | Morton vs St Johnstone | minute=60 | Morton=7.8, Draw=2.36, St Johnstone=2.14
+2026-03-07 | Gillingham vs Fleetwood Town | minute=60 | Gillingham=3.7, Draw=2.06, Fleetwood Town=3.75
+2026-03-07 | Hartlepool vs FC Halifax Town | minute=60 | Hartlepool=2.82, Draw=2.1, FC Halifax Town=4.5
+2026-03-07 | Lithuania (W) vs Estonia (W) | minute=60 | Lithuania (W)=2.78, Draw=2.24, Estonia (W)=4.4
+2026-03-07 | Arbroath vs Ross Co | minute=60 | Arbroath=2.08, Draw=2.24, Ross Co=11.0
+2026-03-07 | Rochdale vs Boston Utd | minute=60 | Rochdale=1.87, Draw=2.6, Boston Utd=9.2
+2026-03-07 | Everton De Vina vs Deportes Limache | minute=66 | Everton De Vina=3.05, Draw=2.24, Deportes Limache=4.0
+2026-03-07 | Dag and Red vs Dorking Wanderers | minute=66 | Dag and Red=3.6, Draw=2.16, Dorking Wanderers=3.2
+2026-03-07 | Spennymoor Town vs Bedford Town | minute=65 | Spennymoor Town=2.74, Draw=2.22, Bedford Town=4.5
+2026-03-07 | Tonbridge Angels vs Worthing | minute=65 | Tonbridge Angels=4.5, Draw=2.54, Worthing=2.34
+2026-03-07 | Charlton vs Birmingham | minute=64 | Charlton=4.5, Draw=1.91, Birmingham=3.75
+2026-03-07 | Oxford City vs Scarborough Athletic | minute=64 | Oxford City=4.3, Draw=2.04, Scarborough Athletic=3.15
+2026-03-07 | Aris vs Atromitos | minute=64 | Aris=3.8, Draw=2.12, Atromitos=3.65
+2026-03-07 | Forfar vs Clyde | minute=63 | Forfar=4.3, Draw=2.02, Clyde=3.25
+2026-03-07 | Serbia (W) vs Sweden (W) | minute=63 | Serbia (W)=12.5, Draw=2.34, Sweden (W)=1.93
+2026-03-07 | Newport County vs Colchester | minute=60 | Newport County=5.1, Draw=2.42, Colchester=2.46
+2026-03-07 | Huesca vs Albacete | minute=63 | Huesca=4.4, Draw=2.08, Albacete=3.25
+2026-03-07 | Almere City vs ADO Den Haag | minute=60 | Almere City=4.4, Draw=2.64, ADO Den Haag=2.44
+2026-03-07 | Penafiel vs Farense | minute=60 | Penafiel=2.44, Draw=2.2, Farense=6.6
+2026-03-07 | Botev Vratsa vs Arda | minute=60 | Botev Vratsa=4.1, Draw=1.78, Arda=4.6
+2026-03-07 | FC Milsami-Ursidos vs Zimbru Chisinau | minute=60 | FC Milsami-Ursidos=4.4, Draw=2.08, Zimbru Chisinau=3.0
+2026-03-07 | Dinamo Batumi vs Gagra | minute=60 | Dinamo Batumi=3.6, Draw=2.16, Gagra=3.45
+2026-03-07 | Almere City vs ADO Den Haag | minute=90 | Almere City=1.08, Draw=1.01, ADO Den Haag=1.01
+2026-03-07 | Nantes vs Angers | minute=83 | Nantes=38.0, Draw=5.5, Angers=1.24
+2026-03-07 | FC Milsami-Ursidos vs Zimbru Chisinau | minute=85 | FC Milsami-Ursidos=7.4, Draw=1.24, Zimbru Chisinau=3.75
+2026-03-07 | Zalaegerszeg vs Gyori | minute=81 | Zalaegerszeg=8.4, Draw=1.47, Gyori=4.4
+2026-03-07 | Slovenia (W) vs Austria (W) | minute=84 | Slovenia (W)=1.01, Draw=1.01, Austria (W)=1.01
+2026-03-07 | Sandecja Nowy Sacz vs Hutnik Krakow | minute=85 | Sandecja Nowy Sacz=1.12, Draw=6.6, Hutnik Krakow=60.0
+2026-03-07 | Viborg vs FC Copenhagen | minute=84 | Viborg=36.0, Draw=5.4, FC Copenhagen=1.23
+2026-03-07 | Croatia (W) vs Kosovo (W) | minute=83 | Croatia (W)=21.0, Draw=4.7, Kosovo (W)=1.24
+2026-03-07 | Portugal (W) vs Slovakia (W) | minute=82 | Portugal (W)=-, Draw=100.0, Slovakia (W)=150.0
+2026-03-07 | Dinamo Batumi vs Gagra | minute=81 | Dinamo Batumi=6.4, Draw=1.37, Gagra=6.4
+2026-03-07 | Cesar Vallejo Moquegua vs Sport Huancayo | minute=80 | Cesar Vallejo Moquegua=1.28, Draw=5.0, Sport Huancayo=1.47
+2026-03-07 | Pafos FC vs Digenis Ypsona | minute=81 | Pafos FC=-, Draw=100.0, Digenis Ypsona=110.0
+2026-03-07 | AEK Athens vs Athlitiki Enosi Larissa | minute=76 | AEK Athens=1.07, Draw=14.0, Athlitiki Enosi Larissa=160.0
+2026-03-07 | Belgium (W) vs Israel (W) | minute=79 | Belgium (W)=-, Draw=230.0, Israel (W)=100.0
+2026-03-07 | Lokomotiva vs Varazdin | minute=65 | Lokomotiva=1.26, Draw=5.4, Varazdin=30.0
+2026-03-07 | Venezia vs Reggiana | minute=68 | Venezia=1.1, Draw=10.5, Reggiana=95.0
+2026-03-07 | Pro Vercelli vs Cittadella | minute=60 | Pro Vercelli=3.95, Draw=1.89, Cittadella=4.2
+2026-03-07 | Renate vs Lumezzane | minute=60 | Renate=2.46, Draw=2.06, Lumezzane=6.0
+2026-03-07 | Union Brescia vs Triestina | minute=64 | Union Brescia=1.97, Draw=2.48, Triestina=8.8
+2026-03-07 | Ceske Budejovice vs Slavia Praha B | minute=60 | Ceske Budejovice=4.1, Draw=2.16, Slavia Praha B=3.1
+2026-03-07 | Ham-Kam vs Lillestrom | minute=61 | Ham-Kam=5.8, Draw=2.38, Lillestrom=2.4
+2026-03-07 | Amed Sportif Faaliyetler vs Serik Belediyespor | minute=60 | Amed Sportif Faaliyetler=1.54, Draw=3.45, Serik Belediyespor=13.0
+2026-03-07 | Canada (W) vs Argentina (W) | minute=63 | Canada (W)=1.77, Draw=2.56, Argentina (W)=7.6
+2026-03-07 | Olympic Charleroi vs Daring Brussels | minute=79 | Olympic Charleroi=2.5, Draw=3.5, Daring Brussels=2.84
+2026-03-07 | Auxerre vs Strasbourg | minute=60 | Auxerre=3.65, Draw=2.3, Strasbourg=2.16
+2026-03-07 | Juventus vs Pisa | minute=79 | Juventus=1.23, Draw=7.4, Pisa=16.0
+2026-03-07 | Ujpest vs Paks | minute=62 | Ujpest=3.9, Draw=2.38, Paks=2.96
+2026-03-07 | Modena vs Cesena | minute=61 | Modena=2.72, Draw=2.08, Cesena=6.0
+2026-03-07 | St Etienne vs Red Star | minute=60 | St Etienne=2.76, Draw=2.22, Red Star=4.9
+2026-03-07 | Anderlecht B vs Patro Eisden Maasmechelen | minute=61 | Anderlecht B=3.55, Draw=1.99, Patro Eisden Maasmechelen=4.3
+2026-03-07 | Lommel vs Kortrijk | minute=61 | Lommel=4.2, Draw=2.06, Kortrijk=3.35
+2026-03-07 | Al Nassr vs NEOM Sports Club | minute=61 | Al Nassr=1.52, Draw=3.85, NEOM Sports Club=10.0
+2026-03-07 | Estoril Praia vs Casa Pia | minute=66 | Estoril Praia=1.78, Draw=4.1, Casa Pia=5.0
+2026-03-07 | Ghazl El Mahallah vs Pharco FC | minute=60 | Ghazl El Mahallah=3.8, Draw=1.83, Pharco FC=4.9
+2026-03-07 | Athletic Bilbao vs Barcelona | minute=60 | Athletic Bilbao=5.0, Draw=2.74, Barcelona=2.26
+2026-03-07 | Barcelona (Ecu) vs Emelec | minute=72 | Barcelona (Ecu)=2.18, Draw=3.05, Emelec=4.3
+2026-03-07 | USA (W) vs Colombia (W) | minute=63 | USA (W)=1.71, Draw=2.8, Colombia (W)=10.0
+2026-03-07 | El Daklyeh vs Tanta | minute=90 | El Daklyeh=1.01, Draw=1.01, Tanta=1.01
+2026-03-07 | Excelsior vs Heerenveen | minute=90 | Excelsior=50.0, Draw=6.6, Heerenveen=1.16
+2026-03-07 | Newcastle vs Man City | minute=90 | Newcastle=1000.0, Draw=190.0, Man City=-
+2026-03-07 | Malaga vs Valladolid | minute=88 | Malaga=1.27, Draw=4.9, Valladolid=42.0
+2026-03-07 | Athletic Bilbao vs Barcelona | minute=90 | Athletic Bilbao=120.0, Draw=7.6, Barcelona=1.13
+2026-03-07 | Progreso vs Albion FC | minute=90 | Progreso=6.6, Draw=1.2, Albion FC=11.0
+2026-03-07 | Bahia vs EC Vitoria Salvador | minute=85 | Bahia=1.11, Draw=9.6, EC Vitoria Salvador=110.0
+2026-03-07 | Toulouse vs Marseille | minute=86 | Toulouse=25.0, Draw=6.2, Marseille=1.18
+2026-03-07 | France (W) vs Poland (W) | minute=82 | France (W)=-, Draw=100.0, Poland (W)=110.0
+2026-03-07 | Sporting Cristal vs Alianza Atletico | minute=62 | Sporting Cristal=1.01, Draw=50.0, Alianza Atletico=250.0
+2026-03-07 | USA (W) vs Colombia (W) | minute=67 | USA (W)=1.84, Draw=2.5, Colombia (W)=10.5
+2026-03-07 | Estoril Praia vs Casa Pia | minute=64 | Estoril Praia=2.9, Draw=2.22, Casa Pia=4.6
+2026-03-07 | Malaga vs Valladolid | minute=90 | Malaga=19.5, Draw=1.1, Valladolid=16.5
+2026-03-07 | Bahia vs EC Vitoria Salvador | minute=90 | Bahia=1.05, Draw=15.0, EC Vitoria Salvador=220.0
+2026-03-07 | France (W) vs Poland (W) | minute=90 | France (W)=-, Draw=1.34, Poland (W)=5.5
+2026-03-07 | USA (W) vs Colombia (W) | minute=65 | USA (W)=1.79, Draw=2.24, Colombia (W)=13.5
+2026-03-07 | Sporting Cristal vs Alianza Atletico | minute=73 | Sporting Cristal=-, Draw=26.0, Alianza Atletico=40.0
+2026-03-07 | Estoril Praia vs Casa Pia | minute=71 | Estoril Praia=3.35, Draw=1.88, Casa Pia=5.6
+2026-03-07 | Zamora FC vs Carabobo FC | minute=60 | Zamora FC=3.85, Draw=1.89, Carabobo FC=4.4

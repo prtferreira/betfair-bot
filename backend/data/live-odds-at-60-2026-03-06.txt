@@ -4,3 +4,50 @@
 2026-03-06 | Thanh Hoa vs Hong Linh Ha Tinh | minute=60 | Thanh Hoa=4.1, Draw=1.9, Hong Linh Ha Tinh=3.95
 2026-03-06 | AS Solimane vs Esperance Sportive Zarzis | minute=60 | AS Solimane=5.7, Draw=1.8, Esperance Sportive Zarzis=3.45
 2026-03-06 | Beykoz Anadolu Spor vs Iskenderunspor | minute=60 | Beykoz Anadolu Spor=5.0, Draw=2.04, Iskenderunspor=3.0
+2026-03-06 | Tanjong Pagar United vs Albirex Niigata (SIN) | minute=90 | Tanjong Pagar United=100.0, Draw=500.0, Albirex Niigata (SIN)=-
+2026-03-06 | Beykoz Anadolu Spor vs Iskenderunspor | minute=90 | Beykoz Anadolu Spor=100.0, Draw=21.0, Iskenderunspor=1.02
+2026-03-06 | Bucaspor vs Erbaaspor | minute=90 | Bucaspor=26.0, Draw=1.05, Erbaaspor=1.01
+2026-03-06 | Bul FC vs Calvary FC | minute=71 | Bul FC=-, Draw=100.0, Calvary FC=100.0
+2026-03-06 | Updf FC vs Airtel Kitara FC | minute=70 | Updf FC=5.7, Draw=1.62, Airtel Kitara FC=4.3
+2026-03-06 | Aizawl FC vs Rajasthan United Football Club | minute=69 | Aizawl FC=1.43, Draw=2.8, Rajasthan United Football Club=4.1
+2026-03-06 | Lugazi FC vs NEC FC | minute=72 | Lugazi FC=1.01, Draw=2.46, NEC FC=1.26
+2026-03-06 | Gandzasar Kapan vs FC Urartu | minute=71 | Gandzasar Kapan=1.9, Draw=3.3, FC Urartu=5.0
+2026-03-06 | Sariyer G.K. vs Umraniyespor | minute=67 | Sariyer G.K.=12.0, Draw=3.4, Umraniyespor=1.57
+2026-03-06 | Coventry City U21 vs Fleetwood Town U21 | minute=73 | Coventry City U21=8.4, Draw=3.45, Fleetwood Town U21=1.54
+2026-03-06 | Barnsley U21 vs Crewe U21 | minute=77 | Barnsley U21=1.23, Draw=5.6, Crewe U21=34.0
+2026-03-06 | KS Gornik Zabrze II vs LZS Starowice | minute=61 | KS Gornik Zabrze II=-, Draw=100.0, LZS Starowice=100.0
+2026-03-06 | Opatija vs Hrvace | minute=60 | Opatija=3.0, Draw=2.0, Hrvace=5.4
+2026-03-06 | JSD Jijel vs MO Bejaia | minute=60 | JSD Jijel=2.34, Draw=2.14, MO Bejaia=7.0
+2026-03-06 | Rigas Futbola Skola vs Ogre United | minute=60 | Rigas Futbola Skola=1.35, Draw=4.3, Ogre United=21.0
+2026-03-06 | FC Iberia 1999 vs Dila Gori | minute=60 | FC Iberia 1999=2.94, Draw=1.91, Dila Gori=6.0
+2026-03-06 | Bron Radom vs GKS Wikielec | minute=60 | Bron Radom=3.05, Draw=2.14, GKS Wikielec=4.2
+2026-03-06 | Floridsdorfer Ac vs SK Sturm Graz II | minute=60 | Floridsdorfer Ac=3.3, Draw=1.98, SK Sturm Graz II=4.7
+2026-03-06 | NK Istra vs Osijek | minute=60 | NK Istra=3.6, Draw=2.04, Osijek=4.0
+2026-03-06 | HB Koge vs Esbjerg | minute=60 | HB Koge=4.3, Draw=2.22, Esbjerg=3.0
+2026-03-06 | Csikszereda vs Farul Constanta | minute=60 | Csikszereda=4.6, Draw=2.0, Farul Constanta=3.3
+2026-03-06 | Elversberg vs FC Magdeburg | minute=60 | Elversberg=2.38, Draw=2.58, FC Magdeburg=5.0
+2026-03-06 | AaB vs Aarhus Fremad | minute=60 | AaB=3.85, Draw=2.14, Aarhus Fremad=3.55
+2026-03-06 | Samail vs Sur Club | minute=60 | Samail=4.2, Draw=1.83, Sur Club=4.1
+2026-03-06 | Chaves vs Academico de Viseu | minute=61 | Chaves=4.2, Draw=2.02, Academico de Viseu=3.55
+2026-03-06 | Rapperswil-Jona vs FC Vaduz | minute=60 | Rapperswil-Jona=8.4, Draw=2.76, FC Vaduz=1.85
+2026-03-06 | Stade Nyonnais vs Neuchatel Xamax | minute=60 | Stade Nyonnais=4.1, Draw=2.26, Neuchatel Xamax=2.94
+2026-03-06 | Rodez vs Grenoble | minute=60 | Rodez=2.82, Draw=2.26, Grenoble=4.5
+2026-03-06 | Kfco Beerschot Wilrijk vs Racing Genk B | minute=60 | Kfco Beerschot Wilrijk=1.2, Draw=6.6, Racing Genk B=27.0
+2026-03-06 | Heracles vs FC Utrecht | minute=60 | Heracles=5.8, Draw=2.38, FC Utrecht=2.4
+2026-03-06 | VVV Venlo vs RKC Waalwijk | minute=60 | VVV Venlo=4.0, Draw=2.56, RKC Waalwijk=2.64
+2026-03-06 | Proxy Work Club vs Raya Sporting FC | minute=61 | Proxy Work Club=2.62, Draw=2.1, Raya Sporting FC=5.9
+2026-03-06 | El Gounah vs Wadi degla | minute=61 | El Gounah=4.8, Draw=1.76, Wadi degla=3.35
+2026-03-06 | Olympic El Qanal vs Abo Qair Semads | minute=60 | Olympic El Qanal=3.7, Draw=1.92, Abo Qair Semads=3.95
+2026-03-06 | FC Masar vs El Entag El Harby | minute=60 | FC Masar=1.91, Draw=2.22, El Entag El Harby=11.0
+2026-03-06 | Aswan FC vs El Mansurah | minute=64 | Aswan FC=3.85, Draw=1.62, El Mansurah=6.4
+2026-03-06 | Bray Wanderers vs Athlone Town | minute=60 | Bray Wanderers=2.56, Draw=2.3, Athlone Town=5.2
+2026-03-06 | Shamrock Rovers vs Derry City | minute=60 | Shamrock Rovers=3.0, Draw=2.1, Derry City=5.0
+2026-03-06 | Tigres FC Zipaquira vs Boyaca Patriotas | minute=60 | Tigres FC Zipaquira=7.2, Draw=2.0, Boyaca Patriotas=2.7
+2026-03-06 | Famalicao vs Arouca | minute=60 | Famalicao=2.3, Draw=2.36, Arouca=6.4
+2026-03-06 | ASO Chlef vs ES Setif | minute=60 | ASO Chlef=3.45, Draw=1.89, ES Setif=4.8
+2026-03-06 | Estudiantes de Merida vs Deportivo La Guaira | minute=60 | Estudiantes de Merida=6.0, Draw=2.5, Deportivo La Guaira=2.2
+2026-03-06 | CODM Meknes vs IRT Tanger | minute=60 | CODM Meknes=6.8, Draw=2.22, IRT Tanger=2.44
+2026-03-06 | Estudiantes de Merida vs Deportivo La Guaira | minute=60 | Estudiantes de Merida=7.0, Draw=2.4, Deportivo La Guaira=2.2
+2026-03-06 | Yacoub El Mansour vs FUS Rabat | minute=64 | Yacoub El Mansour=10.5, Draw=3.55, FUS Rabat=1.54
+2026-03-06 | Wanderers (Uru) vs Deportivo Maldonado | minute=60 | Wanderers (Uru)=4.3, Draw=2.06, Deportivo Maldonado=3.2
+2026-03-06 | Novo Hamburgo vs Sao Luiz | minute=60 | Novo Hamburgo=2.7, Draw=1.9, Sao Luiz=7.4

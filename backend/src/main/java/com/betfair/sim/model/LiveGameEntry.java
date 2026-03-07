@@ -16,6 +16,8 @@ public class LiveGameEntry {
   private Double homeLayOdds;
   private Double drawLayOdds;
   private Double awayLayOdds;
+  private Double over15Odds;
+  private Double under15Odds;
   private String score;
   private String minute;
   private String minuteSource;
@@ -144,6 +146,22 @@ public class LiveGameEntry {
 
   public void setAwayLayOdds(Double awayLayOdds) {
     this.awayLayOdds = awayLayOdds;
+  }
+
+  public Double getOver15Odds() {
+    return over15Odds;
+  }
+
+  public void setOver15Odds(Double over15Odds) {
+    this.over15Odds = over15Odds;
+  }
+
+  public Double getUnder15Odds() {
+    return under15Odds;
+  }
+
+  public void setUnder15Odds(Double under15Odds) {
+    this.under15Odds = under15Odds;
   }
 
   public String getScore() {

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import "./simulations.css";
 
-type StrategyTab = "overunder1_5" | "early_goal_ht" | "laydraw_after_ht_0_0";
+type StrategyTab =
+  | "overunder1_5"
+  | "early_goal_ht"
+  | "laydraw_after_ht_0_0"
+  | "laydraw_after_65_tie_lt2";
 type BetState = "OPEN" | "WON" | "LOST";
 type ViewTab = "open" | "wins" | "losses";
 
@@ -23,6 +27,8 @@ interface LiveGameEntry {
   homeLayOdds?: number;
   drawLayOdds?: number;
   awayLayOdds?: number;
+  over15Odds?: number;
+  under15Odds?: number;
 }
 
 interface OverUnderSimBet {
@@ -47,6 +53,7 @@ interface EarlyGoalHtSimBet {
   awayTeam: string;
   league: string;
   placedAtMinute: string;
+  entryScore?: string;
   entryBackOdds: number;
   entryLayOdds: number;
   stake: number;
@@ -104,11 +111,13 @@ export default function SimulationsPage() {
     const endpoint =
       activeTab === "early_goal_ht"
         ? "/api/sim/earlygoalht/status"
+        : activeTab === "laydraw_after_65_tie_lt2"
+        ? "/api/sim/laydraw-after-65/status"
         : activeTab === "laydraw_after_ht_0_0"
         ? "/api/sim/laydraw-after-ht-00/status"
         : "/api/sim/overunder15/status";
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(
         `${API_BASE}${endpoint}?ts=${Date.now()}`,
@@ -141,7 +150,7 @@ export default function SimulationsPage() {
         if (!active) return;
         const message =
           err instanceof Error && err.name === "AbortError"
-            ? "Simulation status request timed out after 15s. Backend is likely waiting on live APIs."
+            ? "Simulation status request timed out after 30s. Backend is likely waiting on live APIs."
             : err instanceof Error
             ? err.message
             : "Failed loading simulations";
@@ -383,6 +392,13 @@ export default function SimulationsPage() {
         >
           laydraw_after_ht_0_0
         </button>
+        <button
+          type="button"
+          className={`sim-tab ${activeTab === "laydraw_after_65_tie_lt2" ? "sim-tab--active" : ""}`}
+          onClick={() => setActiveTab("laydraw_after_65_tie_lt2")}
+        >
+          laydraw_after_65_tie_lt2
+        </button>
       </div>
       <div className="sim-tabs" role="tablist" aria-label="Bet views">
         <button
@@ -461,6 +477,8 @@ export default function SimulationsPage() {
             ? `Strategy: Back Over 1.5 at minute 20+ only when score is 0-0 and odds are at least 1.45. Stake ${stake} EUR. Last updated ${lastUpdated}.`
             : activeTab === "early_goal_ht"
             ? `Strategy: Early Goal HT: Lay Draw close to kickoff for balanced games, close on first goal (green-up) or around 25'. Stake ${stake} EUR. Last updated ${lastUpdated}.`
+            : activeTab === "laydraw_after_65_tie_lt2"
+            ? `Strategy: Lay Draw (FT Match Odds) when game is tied at 65'+ and draw lay odds are below 2.00. Stake ${stake} EUR. Last updated ${lastUpdated}.`
             : `Strategy: LayDrawAfterHT0_0: Lay Draw just after second half starts (46'-50') only in 0-0, draw lay <= 3, balanced match (home/away odds gap <= 1.5). Close on first goal or at 70'. Stake ${stake} EUR. Last updated ${lastUpdated}.`}
         </p>
       </section>
@@ -491,7 +509,7 @@ export default function SimulationsPage() {
         </p>
       ) : null}
 
-      {!loading && !error ? (
+      {!loading && status ? (
         <ul className="sim-list">
           {visibleBets.map((bet) => {
             const game = liveGameByEventId[bet.eventId];
@@ -544,6 +562,18 @@ export default function SimulationsPage() {
                         : overBet.odds.toFixed(2)}
                     </div>
                   </div>
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Entry minute</div>
+                      <div className="sim-v">{earlyBet.placedAtMinute || "-"}</div>
+                    </div>
+                  ) : null}
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Entry score</div>
+                      <div className="sim-v">{earlyBet.entryScore || "-"}</div>
+                    </div>
+                  ) : null}
                   {isLayDrawStrategy ? (
                     <div>
                       <div className="sim-k">Live draw B/L</div>
@@ -615,7 +645,7 @@ export default function SimulationsPage() {
           })}
         </ul>
       ) : null}
-      {!loading && !error && visibleBets.length === 0 ? (
+      {!loading && status && visibleBets.length === 0 ? (
         <p className="sim-hint">
           {viewTab === "open"
             ? "No open bets."

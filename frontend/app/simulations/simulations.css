@@ -111,6 +111,28 @@
   gap: 10px;
 }
 
+.sim-live-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.sim-live-row {
+  border: 1px solid #e0e8f0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.sim-live-row__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
 .sim-row {
   border: 1px solid #e0e8f0;
   border-radius: 10px;

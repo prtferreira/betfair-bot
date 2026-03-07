@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -55,7 +58,7 @@ public class EarlyGoalHtStatsService {
   }
 
   public synchronized EarlyGoalHtStatusResponse getStatus() {
-    List<LiveGameEntry> liveGames = gameService.betfairLiveGames();
+    List<LiveGameEntry> liveGames = runWithTimeout(gameService::betfairLiveGames, List.of(), 3500);
     Map<String, LiveGameEntry> liveGamesByEventId = new LinkedHashMap<>();
     for (LiveGameEntry game : liveGames) {
       String eventId = safe(game.getEventId()).trim();
@@ -63,7 +66,11 @@ public class EarlyGoalHtStatsService {
         liveGamesByEventId.put(eventId, game);
       }
     }
-    Map<String, Game> betfairByEventId = loadBetfairGamesByEventId(LocalDate.now(ZoneOffset.UTC));
+    Map<String, Game> betfairByEventId =
+        runWithTimeout(
+            () -> loadBetfairGamesByEventId(LocalDate.now(ZoneOffset.UTC)),
+            Map.of(),
+            1500);
     Map<String, EarlyGoalHtBetRecord> betsByEventId = loadBetsByEventId();
     String now = Instant.now().toString();
     Set<String> liveEventIds = new HashSet<>();
@@ -641,4 +648,13 @@ public class EarlyGoalHtStatsService {
   }
 
   private record OpeningOddsSnapshot(double homeBack, double drawBack, double awayBack) {}
+
+  private <T> T runWithTimeout(Supplier<T> supplier, T fallback, long timeoutMs) {
+    try {
+      return CompletableFuture.supplyAsync(supplier)
+          .get(Math.max(500L, timeoutMs), TimeUnit.MILLISECONDS);
+    } catch (Exception ex) {
+      return fallback;
+    }
+  }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
@@ -28,8 +29,14 @@ public class BetfairAuthService {
           String authBaseUrl,
       @Value("${betfair.app-key:}") String appKey,
       @Value("${betfair.username:}") String username,
-      @Value("${betfair.password:}") String password) {
-    this.restTemplate = restTemplateBuilder.build();
+      @Value("${betfair.password:}") String password,
+      @Value("${betfair.http.connect-timeout-ms:3000}") long connectTimeoutMs,
+      @Value("${betfair.http.read-timeout-ms:7000}") long readTimeoutMs) {
+    this.restTemplate =
+        restTemplateBuilder
+            .setConnectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
+            .setReadTimeout(Duration.ofMillis(Math.max(1000L, readTimeoutMs)))
+            .build();
     this.objectMapper = objectMapper;
     this.authBaseUrl = authBaseUrl;
     this.appKey = appKey;

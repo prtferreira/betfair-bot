@@ -1,22 +1,15 @@
 package com.betfair.sim.service;
 
+import com.betfair.sim.model.Game;
 import com.betfair.sim.model.LayDrawAfterHt00BetRecord;
 import com.betfair.sim.model.LayDrawAfterHt00StatusResponse;
-import com.betfair.sim.model.Game;
 import com.betfair.sim.model.LiveGameEntry;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import com.betfair.sim.model.MappedLiveGameEntry;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.Duration;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,39 +17,29 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
-public class LayDrawAfterHt00StatsService {
-  private static final String STRATEGY_ID = "laydraw_after_ht_0_0";
+public class LayDrawAfter65StatsService {
+  private static final String STRATEGY_ID = "laydraw_after_65_tie_lt2";
   private static final double STARTING_BANK = 1000d;
   private static final double STAKE = 20d;
-  private static final int ENTRY_START_MINUTE = 46;
-  private static final int ENTRY_END_MINUTE = 50;
-  private static final int EXIT_MINUTE = 70;
-  private static final double MAX_DRAW_LAY_ODDS = 3.0d;
-  private static final double MAX_HOME_AWAY_DIFF = 1.5d;
-  private static final double MAX_ENTRY_SPREAD = 0.04d;
-  private static final DateTimeFormatter AUDIT_FILE_DATE = DateTimeFormatter.BASIC_ISO_DATE;
+  private static final int ENTRY_MINUTE = 65;
+  private static final int ENTRY_MAX_MINUTE = 76;
+  private static final double MAX_DRAW_LAY_ODDS = 2.0d;
 
   private final GameService gameService;
   private final JdbcTemplate jdbcTemplate;
-  private final Path auditDir;
 
-  public LayDrawAfterHt00StatsService(
-      GameService gameService,
-      JdbcTemplate jdbcTemplate,
-      @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
+  public LayDrawAfter65StatsService(GameService gameService, JdbcTemplate jdbcTemplate) {
     this.gameService = gameService;
     this.jdbcTemplate = jdbcTemplate;
-    this.auditDir = FollowedGamesPathResolver.resolve(followedGamesDir).resolve("api");
     initSchema();
   }
 
   public synchronized LayDrawAfterHt00StatusResponse getStatus() {
-    List<LiveGameEntry> liveGames = runWithTimeout(gameService::betfairLiveGames, List.of(), 3500);
+    List<LiveGameEntry> liveGames = runWithTimeout(gameService::betfairLiveGames, List.of(), 10000);
     Map<String, LiveGameEntry> liveGamesByEventId = new LinkedHashMap<>();
     for (LiveGameEntry game : liveGames) {
       String eventId = safe(game.getEventId()).trim();
@@ -65,11 +48,10 @@ public class LayDrawAfterHt00StatsService {
       }
     }
     Map<String, Game> betfairByEventId =
-        runWithTimeout(
-            () -> loadBetfairGamesByEventId(LocalDate.now(ZoneOffset.UTC)),
-            Map.of(),
-            1500);
+        runWithTimeout(() -> loadBetfairGamesByEventId(LocalDate.now(ZoneOffset.UTC)), Map.of(), 1500);
+    Map<String, MappedLiveGameEntry> statpalByEventId = runWithTimeout(this::loadStatpalMappedByEventId, Map.of(), 3500);
     Map<String, LayDrawAfterHt00BetRecord> betsByEventId = loadBetsByEventId();
+    pruneInvalidOpenBetsByEntryWindow(betsByEventId);
     String now = Instant.now().toString();
 
     for (LiveGameEntry game : liveGames) {
@@ -78,13 +60,15 @@ public class LayDrawAfterHt00StatsService {
         continue;
       }
       int minute = parseMinute(game.getMinute());
-      int goals = parseGoals(game.getScore());
+      Integer homeGoals = parseHomeGoals(game.getScore());
+      Integer awayGoals = parseAwayGoals(game.getScore());
+      boolean tied = homeGoals != null && awayGoals != null && homeGoals.intValue() == awayGoals.intValue();
       Double drawBack = game.getDrawOdds();
       Double drawLay = game.getDrawLayOdds();
-      LayDrawAfterHt00BetRecord existing = betsByEventId.get(eventId);
 
+      LayDrawAfterHt00BetRecord existing = betsByEventId.get(eventId);
       if (existing == null) {
-        if (shouldOpen(game, minute, goals, drawBack, drawLay)) {
+        if (shouldOpen(game, minute, tied, drawLay)) {
           LayDrawAfterHt00BetRecord created = new LayDrawAfterHt00BetRecord();
           created.setStrategyId(STRATEGY_ID);
           created.setEventId(eventId);
@@ -93,20 +77,20 @@ public class LayDrawAfterHt00StatsService {
           created.setAwayTeam(safe(game.getAwayTeam()));
           created.setLeague(safe(game.getLeague()));
           created.setPlacedAtMinute(safe(game.getMinute()));
-          created.setEntryBackOdds(round2(drawBack));
+          created.setEntryScore(safe(game.getScore()));
+          created.setEntryBackOdds(round2(drawBack == null ? 0d : drawBack));
           created.setEntryLayOdds(round2(drawLay));
           created.setStake(STAKE);
           created.setState("OPEN");
           created.setProfit(0d);
-          created.setExitBackOdds(0d);
           created.setExitAtMinute("");
+          created.setExitBackOdds(0d);
           created.setCloseReason("");
           created.setLatestScore(safe(game.getScore()));
           created.setLatestMinute(safe(game.getMinute()));
           created.setCreatedAt(now);
           created.setUpdatedAt(now);
           insertBet(created);
-          appendAuditLine(created, now);
           betsByEventId.put(eventId, created);
         }
         continue;
@@ -119,17 +103,13 @@ public class LayDrawAfterHt00StatsService {
         existing.setMarketId(safe(game.getMarketId()));
       }
 
-      if ("OPEN".equalsIgnoreCase(existing.getState())) {
-        String closeReason = resolveCloseReason(game, minute, goals);
-        if (!closeReason.isBlank() && drawBack != null && drawBack > 1.01d) {
-          closePosition(existing, drawBack, game.getMinute(), closeReason, now);
-        } else if (!closeReason.isBlank() && isFinished(game)) {
-          closePosition(existing, Math.max(1.01d, existing.getEntryLayOdds()), game.getMinute(), closeReason, now);
-        }
+      if ("OPEN".equalsIgnoreCase(existing.getState()) && isFinished(game)) {
+        settleByFinalScore(existing, tied, game.getMinute(), now);
       }
       updateBet(existing);
     }
-    settleStaleOpenBets(betsByEventId, liveGamesByEventId, betfairByEventId, now);
+
+    settleStaleOpenBets(betsByEventId, liveGamesByEventId, betfairByEventId, statpalByEventId, now);
 
     List<LayDrawAfterHt00BetRecord> bets = loadBets();
     LayDrawAfterHt00StatusResponse response = buildResponse(liveGames, bets, now);
@@ -137,69 +117,36 @@ public class LayDrawAfterHt00StatsService {
     return response;
   }
 
-  private boolean shouldOpen(
-      LiveGameEntry game, int minute, int goals, Double drawBack, Double drawLay) {
+  private boolean shouldOpen(LiveGameEntry game, int minute, boolean tied, Double drawLay) {
     if (!Boolean.TRUE.equals(game.isInPlay())) {
       return false;
     }
-    if (minute < ENTRY_START_MINUTE || minute > ENTRY_END_MINUTE) {
+    if (minute < ENTRY_MINUTE || minute > ENTRY_MAX_MINUTE) {
       return false;
     }
-    if (goals != 0) {
+    if (!tied) {
       return false;
     }
-    if (drawBack == null || drawLay == null || drawLay <= 1.01d || drawLay > MAX_DRAW_LAY_ODDS) {
-      return false;
-    }
-    if (!isAcceptedSpread(drawBack, drawLay)) {
-      return false;
-    }
-    return isBalancedGame(game.getHomeOdds(), game.getAwayOdds());
+    return drawLay != null && drawLay > 1.01d && drawLay < MAX_DRAW_LAY_ODDS;
   }
 
-  private boolean isAcceptedSpread(double back, double lay) {
-    if (back <= 1.01d || lay <= 1.01d) {
-      return false;
-    }
-    return (lay - back) <= MAX_ENTRY_SPREAD;
-  }
-
-  private boolean isBalancedGame(Double homeBack, Double awayBack) {
-    if (homeBack == null || awayBack == null || homeBack <= 1.01d || awayBack <= 1.01d) {
-      return false;
-    }
-    double favorite = Math.min(homeBack, awayBack);
-    double underdog = Math.max(homeBack, awayBack);
-    return (underdog - favorite) <= MAX_HOME_AWAY_DIFF;
-  }
-
-  private String resolveCloseReason(LiveGameEntry game, int minute, int goals) {
-    if (goals > 0) {
-      return "GOAL";
-    }
-    if (minute >= EXIT_MINUTE) {
-      return "TIME_70";
-    }
-    if (isFinished(game)) {
-      return "FINISHED";
-    }
-    return "";
-  }
-
-  private void closePosition(
-      LayDrawAfterHt00BetRecord bet, double exitBackOdds, String exitMinute, String closeReason, String now) {
+  private void settleByFinalScore(
+      LayDrawAfterHt00BetRecord bet, boolean tied, String exitMinute, String now) {
     double layOdds = Math.max(1.01d, bet.getEntryLayOdds());
     double layStake = Math.max(0d, bet.getStake());
-    double backOdds = Math.max(1.01d, exitBackOdds);
-    double backStake = (layOdds * layStake) / backOdds;
-    double equalizedProfit = layStake - backStake;
-
-    bet.setExitBackOdds(round2(backOdds));
+    if (tied) {
+      bet.setProfit(round2(-((layOdds - 1d) * layStake)));
+      bet.setState("LOST");
+      bet.setCloseReason("FINISHED_DRAW");
+    } else {
+      bet.setProfit(round2(layStake));
+      bet.setState("WON");
+      bet.setCloseReason("FINISHED_NOT_DRAW");
+    }
+    bet.setExitBackOdds(0d);
     bet.setExitAtMinute(safe(exitMinute));
-    bet.setCloseReason(closeReason);
-    bet.setProfit(round2(equalizedProfit));
-    bet.setState(equalizedProfit >= 0d ? "WON" : "LOST");
     bet.setSettledAt(now);
+    bet.setUpdatedAt(now);
   }
 
   private LayDrawAfterHt00StatusResponse buildResponse(
@@ -258,10 +205,10 @@ public class LayDrawAfterHt00StatsService {
 
   private List<LayDrawAfterHt00BetRecord> loadBets() {
     return jdbcTemplate.query(
-        "SELECT strategy_id, event_id, market_id, home_team, away_team, league, placed_at_minute, "
+        "SELECT strategy_id, event_id, market_id, home_team, away_team, league, placed_at_minute, entry_score, "
             + "entry_back_odds, entry_lay_odds, stake, state, profit, exit_at_minute, exit_back_odds, close_reason, "
             + "latest_score, latest_minute, created_at, updated_at, settled_at "
-            + "FROM laydraw_after_ht_0_0_stats WHERE strategy_id = ? ORDER BY created_at DESC",
+            + "FROM laydraw_after_65_stats WHERE strategy_id = ? ORDER BY created_at DESC",
         (rs, rowNum) -> {
           LayDrawAfterHt00BetRecord bet = new LayDrawAfterHt00BetRecord();
           bet.setStrategyId(rs.getString("strategy_id"));
@@ -271,6 +218,7 @@ public class LayDrawAfterHt00StatsService {
           bet.setAwayTeam(rs.getString("away_team"));
           bet.setLeague(rs.getString("league"));
           bet.setPlacedAtMinute(rs.getString("placed_at_minute"));
+          bet.setEntryScore(rs.getString("entry_score"));
           bet.setEntryBackOdds(rs.getDouble("entry_back_odds"));
           bet.setEntryLayOdds(rs.getDouble("entry_lay_odds"));
           bet.setStake(rs.getDouble("stake"));
@@ -282,11 +230,17 @@ public class LayDrawAfterHt00StatsService {
           bet.setLatestScore(rs.getString("latest_score"));
           bet.setLatestMinute(rs.getString("latest_minute"));
           bet.setCreatedAt(
-              rs.getTimestamp("created_at") == null ? "" : rs.getTimestamp("created_at").toInstant().toString());
+              rs.getTimestamp("created_at") == null
+                  ? ""
+                  : rs.getTimestamp("created_at").toInstant().toString());
           bet.setUpdatedAt(
-              rs.getTimestamp("updated_at") == null ? "" : rs.getTimestamp("updated_at").toInstant().toString());
+              rs.getTimestamp("updated_at") == null
+                  ? ""
+                  : rs.getTimestamp("updated_at").toInstant().toString());
           bet.setSettledAt(
-              rs.getTimestamp("settled_at") == null ? "" : rs.getTimestamp("settled_at").toInstant().toString());
+              rs.getTimestamp("settled_at") == null
+                  ? ""
+                  : rs.getTimestamp("settled_at").toInstant().toString());
           return bet;
         },
         STRATEGY_ID);
@@ -294,11 +248,11 @@ public class LayDrawAfterHt00StatsService {
 
   private void insertBet(LayDrawAfterHt00BetRecord bet) {
     jdbcTemplate.update(
-        "INSERT INTO laydraw_after_ht_0_0_stats ("
+        "INSERT INTO laydraw_after_65_stats ("
             + "strategy_id, event_id, market_id, home_team, away_team, league, placed_at_minute, "
-            + "entry_back_odds, entry_lay_odds, stake, state, profit, exit_at_minute, exit_back_odds, close_reason, "
+            + "entry_score, entry_back_odds, entry_lay_odds, stake, state, profit, exit_at_minute, exit_back_odds, close_reason, "
             + "latest_score, latest_minute, created_at, updated_at, settled_at"
-            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)",
+            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?)",
         bet.getStrategyId(),
         bet.getEventId(),
         bet.getMarketId(),
@@ -306,6 +260,7 @@ public class LayDrawAfterHt00StatsService {
         bet.getAwayTeam(),
         bet.getLeague(),
         bet.getPlacedAtMinute(),
+        bet.getEntryScore(),
         bet.getEntryBackOdds(),
         bet.getEntryLayOdds(),
         bet.getStake(),
@@ -321,7 +276,7 @@ public class LayDrawAfterHt00StatsService {
 
   private void updateBet(LayDrawAfterHt00BetRecord bet) {
     jdbcTemplate.update(
-        "UPDATE laydraw_after_ht_0_0_stats SET market_id = ?, latest_score = ?, latest_minute = ?, state = ?, "
+        "UPDATE laydraw_after_65_stats SET market_id = ?, latest_score = ?, latest_minute = ?, state = ?, "
             + "profit = ?, exit_at_minute = ?, exit_back_odds = ?, close_reason = ?, updated_at = CURRENT_TIMESTAMP, settled_at = ? "
             + "WHERE strategy_id = ? AND event_id = ?",
         bet.getMarketId(),
@@ -339,7 +294,7 @@ public class LayDrawAfterHt00StatsService {
 
   private void persistStrategyBalance(LayDrawAfterHt00StatusResponse status) {
     jdbcTemplate.update(
-        "MERGE INTO laydraw_after_ht_0_0_strategy_balances ("
+        "MERGE INTO laydraw_after_65_strategy_balances ("
             + "strategy_id, current_balance, settled_profit, open_bets, finished_bets, wins, losses, "
             + "won_value, lost_value, stake, updated_at"
             + ") KEY(strategy_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
@@ -355,69 +310,28 @@ public class LayDrawAfterHt00StatsService {
         status.getStake());
   }
 
-  private Timestamp toTimestampOrNull(String instantText) {
-    String text = safe(instantText).trim();
-    if (text.isBlank()) {
-      return null;
+  private void pruneInvalidOpenBetsByEntryWindow(Map<String, LayDrawAfterHt00BetRecord> betsByEventId) {
+    if (betsByEventId == null || betsByEventId.isEmpty()) {
+      return;
     }
-    try {
-      return Timestamp.from(Instant.parse(text));
-    } catch (Exception ex) {
-      return null;
-    }
-  }
-
-  private int parseMinute(String raw) {
-    String text = safe(raw).trim();
-    if (text.isBlank()) {
-      return 0;
-    }
-    String upper = text.toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
-    if ("HT".equals(upper) || "HT'".equals(upper)) {
-      return 45;
-    }
-    if ("FT".equals(upper) || "FINISHED".equals(upper)) {
-      return 90;
-    }
-    String normalized = upper.replace("Ã¢â‚¬â„¢", "'").replaceAll("[^0-9+']", "");
-    if (normalized.isBlank()) {
-      return 0;
-    }
-    String base = normalized.endsWith("'") ? normalized.substring(0, normalized.length() - 1) : normalized;
-    try {
-      if (base.contains("+")) {
-        String[] parts = base.split("\\+");
-        return Integer.parseInt(parts[0]) + Integer.parseInt(parts[1]);
+    List<String> toDelete = new java.util.ArrayList<>();
+    for (Map.Entry<String, LayDrawAfterHt00BetRecord> entry : betsByEventId.entrySet()) {
+      LayDrawAfterHt00BetRecord bet = entry.getValue();
+      if (bet == null || !"OPEN".equalsIgnoreCase(safe(bet.getState()))) {
+        continue;
       }
-      return Integer.parseInt(base);
-    } catch (Exception ex) {
-      return 0;
+      int placedMinute = parseMinute(bet.getPlacedAtMinute());
+      if (placedMinute > ENTRY_MAX_MINUTE) {
+        toDelete.add(entry.getKey());
+      }
     }
-  }
-
-  private int parseGoals(String rawScore) {
-    String text = safe(rawScore).trim();
-    if (!text.matches("\\d+\\s*-\\s*\\d+")) {
-      return -1;
+    for (String eventId : toDelete) {
+      jdbcTemplate.update(
+          "DELETE FROM laydraw_after_65_stats WHERE strategy_id = ? AND event_id = ? AND state = 'OPEN'",
+          STRATEGY_ID,
+          eventId);
+      betsByEventId.remove(eventId);
     }
-    String[] parts = text.split("-");
-    try {
-      return Integer.parseInt(parts[0].trim()) + Integer.parseInt(parts[1].trim());
-    } catch (Exception ex) {
-      return -1;
-    }
-  }
-
-  private boolean isFinished(LiveGameEntry game) {
-    String minute = safe(game.getMinute()).trim().toUpperCase(Locale.ROOT);
-    if ("FT".equals(minute) || "FINISHED".equals(minute)) {
-      return true;
-    }
-    String marketStatus = safe(game.getMarketStatus()).trim().toUpperCase(Locale.ROOT);
-    if ("CLOSED".equals(marketStatus)) {
-      return true;
-    }
-    return Boolean.FALSE.equals(game.isInPlay());
   }
 
   private Map<String, Game> loadBetfairGamesByEventId(LocalDate date) {
@@ -436,6 +350,7 @@ public class LayDrawAfterHt00StatsService {
       Map<String, LayDrawAfterHt00BetRecord> betsByEventId,
       Map<String, LiveGameEntry> liveGamesByEventId,
       Map<String, Game> betfairByEventId,
+      Map<String, MappedLiveGameEntry> statpalByEventId,
       String now) {
     for (LayDrawAfterHt00BetRecord bet : betsByEventId.values()) {
       if (!"OPEN".equalsIgnoreCase(safe(bet.getState()))) {
@@ -446,19 +361,61 @@ public class LayDrawAfterHt00StatsService {
         continue;
       }
 
+      // Prefer mapped Statpal snapshot for finish detection and final score reconciliation.
+      MappedLiveGameEntry statpal = statpalByEventId.get(eventId);
+      if (statpal != null) {
+        String statpalScore = safe(statpal.getScore()).trim();
+        String statpalMinute = safe(statpal.getMinute()).trim();
+        if (!statpalScore.isBlank()) {
+          bet.setLatestScore(statpalScore);
+        }
+        if (!statpalMinute.isBlank()) {
+          bet.setLatestMinute(statpalMinute);
+        }
+        if (isStatpalFinished(statpal)) {
+          Integer home = parseHomeGoals(bet.getLatestScore());
+          Integer away = parseAwayGoals(bet.getLatestScore());
+          if (home != null && away != null) {
+            settleByFinalScore(
+                bet,
+                home.intValue() == away.intValue(),
+                bet.getLatestMinute(),
+                now);
+            updateBet(bet);
+            continue;
+          }
+        }
+      }
+
       Game betfairGame = betfairByEventId.get(eventId);
       if (betfairGame != null) {
         String marketStatus = safe(betfairGame.getMarketStatus()).trim().toUpperCase(Locale.ROOT);
         if (isTerminalMarketStatus(marketStatus) || Boolean.FALSE.equals(betfairGame.getInPlay())) {
-          settleFromLatestScore(bet, "STALE_FINISHED", now);
+          Integer home = parseHomeGoals(bet.getLatestScore());
+          Integer away = parseAwayGoals(bet.getLatestScore());
+          settleByFinalScore(
+              bet,
+              home != null && away != null && home.intValue() == away.intValue(),
+              bet.getLatestMinute(),
+              now);
           updateBet(bet);
           continue;
         }
       }
 
-      if (isStaleAtOrPastNinety(bet, now) || isStaleByLastUpdate(bet.getUpdatedAt(), now, 45)) {
-        settleFromLatestScore(bet, "STALE_90_PLUS", now);
-        updateBet(bet);
+      // Fallback: if the feed lost this match and snapshot is old enough, force settlement
+      // from last known score to avoid permanently OPEN bets.
+      if (parseMinute(bet.getLatestMinute()) >= 90 || isStaleByLastUpdate(bet.getUpdatedAt(), now, 45)) {
+        Integer home = parseHomeGoals(bet.getLatestScore());
+        Integer away = parseAwayGoals(bet.getLatestScore());
+        if (home != null && away != null) {
+          settleByFinalScore(
+              bet,
+              home.intValue() == away.intValue(),
+              bet.getLatestMinute(),
+              now);
+          updateBet(bet);
+        }
       }
     }
   }
@@ -469,18 +426,34 @@ public class LayDrawAfterHt00StatsService {
         || "SETTLED".equals(marketStatus);
   }
 
-  private boolean isStaleAtOrPastNinety(LayDrawAfterHt00BetRecord bet, String now) {
-    int minute = parseMinute(bet.getLatestMinute());
-    if (minute < 90) {
+  private boolean isFinished(LiveGameEntry game) {
+    String minute = safe(game.getMinute()).trim().toUpperCase(Locale.ROOT);
+    if ("FT".equals(minute) || "FINISHED".equals(minute) || parseMinute(minute) >= 90) {
+      return true;
+    }
+    String marketStatus = safe(game.getMarketStatus()).trim().toUpperCase(Locale.ROOT);
+    if ("CLOSED".equals(marketStatus)) {
+      return true;
+    }
+    return Boolean.FALSE.equals(game.isInPlay());
+  }
+
+  private boolean isStatpalFinished(MappedLiveGameEntry entry) {
+    if (entry == null) {
       return false;
     }
-    try {
-      Instant nowInstant = Instant.parse(now);
-      Instant updated = Instant.parse(safe(bet.getUpdatedAt()).trim());
-      return Duration.between(updated, nowInstant).toMinutes() >= 20;
-    } catch (Exception ex) {
-      return false;
+    String status = safe(entry.getStatus()).trim().toUpperCase(Locale.ROOT);
+    if ("FT".equals(status)
+        || "FINISHED".equals(status)
+        || "AET".equals(status)
+        || "PEN".equals(status)
+        || "AFTER PEN.".equals(status)
+        || "ENDED".equals(status)
+        || "POSTP".equals(status)
+        || "CANC".equals(status)) {
+      return true;
     }
+    return parseMinute(entry.getMinute()) >= 90;
   }
 
   private boolean isStaleByLastUpdate(String updatedAt, String now, long minMinutes) {
@@ -493,88 +466,75 @@ public class LayDrawAfterHt00StatsService {
     }
   }
 
-  private void settleFromLatestScore(LayDrawAfterHt00BetRecord bet, String closeReason, String now) {
-    int[] score = parseScoreParts(bet.getLatestScore());
-    double layOdds = Math.max(1.01d, bet.getEntryLayOdds());
-    double stake = Math.max(0d, bet.getStake());
-    double liability = (layOdds - 1d) * stake;
-    boolean knownScore = score[0] >= 0 && score[1] >= 0;
-    boolean draw = knownScore && score[0] == score[1];
-
-    bet.setExitAtMinute(safe(bet.getLatestMinute()));
-    bet.setCloseReason(closeReason);
-    bet.setExitBackOdds(draw ? 1.01d : layOdds + 1d);
-    if (draw || !knownScore) {
-      bet.setState("LOST");
-      bet.setProfit(round2(-liability));
-    } else {
-      bet.setState("WON");
-      bet.setProfit(round2(stake));
+  private Map<String, MappedLiveGameEntry> loadStatpalMappedByEventId() {
+    Map<String, MappedLiveGameEntry> out = new LinkedHashMap<>();
+    List<MappedLiveGameEntry> mapped = gameService.betfairMappedLiveGames();
+    for (MappedLiveGameEntry entry : mapped) {
+      String eventId = safe(entry == null ? null : entry.getBetfairEventId()).trim();
+      if (!eventId.isBlank()) {
+        out.putIfAbsent(eventId, entry);
+      }
     }
-    bet.setSettledAt(now);
-    bet.setUpdatedAt(now);
+    return out;
   }
 
-  private int[] parseScoreParts(String rawScore) {
+  private int parseMinute(String raw) {
+    String text = safe(raw).trim();
+    if (text.isBlank()) {
+      return 0;
+    }
+    String upper = text.toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
+    if ("HT".equals(upper) || "HT'".equals(upper)) {
+      return 45;
+    }
+    if ("FT".equals(upper) || "FINISHED".equals(upper)) {
+      return 90;
+    }
+    String normalized = upper.replaceAll("[^0-9+']", "");
+    if (normalized.isBlank()) {
+      return 0;
+    }
+    String base = normalized.endsWith("'") ? normalized.substring(0, normalized.length() - 1) : normalized;
+    try {
+      if (base.contains("+")) {
+        String[] parts = base.split("\\+");
+        return Integer.parseInt(parts[0]) + Integer.parseInt(parts[1]);
+      }
+      return Integer.parseInt(base);
+    } catch (Exception ex) {
+      return 0;
+    }
+  }
+
+  private Integer parseHomeGoals(String rawScore) {
     String text = safe(rawScore).trim();
     if (!text.matches("\\d+\\s*-\\s*\\d+")) {
-      return new int[] {-1, -1};
+      return null;
     }
     String[] parts = text.split("-");
     try {
-      return new int[] {Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
+      return Integer.parseInt(parts[0].trim());
     } catch (Exception ex) {
-      return new int[] {-1, -1};
+      return null;
     }
   }
 
-  private String safe(String value) {
-    return value == null ? "" : value;
-  }
-
-  private double round2(double value) {
-    return Math.round(value * 100d) / 100d;
-  }
-
-  private void appendAuditLine(LayDrawAfterHt00BetRecord bet, String placedAt) {
-    String timestamp = safe(placedAt).isBlank() ? Instant.now().toString() : placedAt;
-    LocalDate day = resolveAuditDay(timestamp);
-    Path file = auditDir.resolve("laydraw_after_ht_0_0_audit_" + day.format(AUDIT_FILE_DATE));
-    String line =
-        String.format(
-            Locale.ROOT,
-            "%s vs %s | placeBetAt=%s | minute=%s | drawBack=%.2f | drawLay=%.2f%n",
-            safe(bet.getHomeTeam()),
-            safe(bet.getAwayTeam()),
-            timestamp,
-            safe(bet.getPlacedAtMinute()),
-            round2(bet.getEntryBackOdds()),
-            round2(bet.getEntryLayOdds()));
-    try {
-      Files.createDirectories(auditDir);
-      Files.writeString(
-          file,
-          line,
-          StandardCharsets.UTF_8,
-          StandardOpenOption.CREATE,
-          StandardOpenOption.APPEND);
-    } catch (IOException ex) {
-      throw new UncheckedIOException("Failed to append LayDrawAfterHT0_0 audit", ex);
+  private Integer parseAwayGoals(String rawScore) {
+    String text = safe(rawScore).trim();
+    if (!text.matches("\\d+\\s*-\\s*\\d+")) {
+      return null;
     }
-  }
-
-  private LocalDate resolveAuditDay(String timestamp) {
+    String[] parts = text.split("-");
     try {
-      return Instant.parse(timestamp).atZone(ZoneOffset.UTC).toLocalDate();
-    } catch (Exception ignored) {
-      return LocalDate.now(ZoneOffset.UTC);
+      return Integer.parseInt(parts[1].trim());
+    } catch (Exception ex) {
+      return null;
     }
   }
 
   private void initSchema() {
     jdbcTemplate.execute(
-        "CREATE TABLE IF NOT EXISTS laydraw_after_ht_0_0_stats ("
-            + "id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,"
+        "CREATE TABLE IF NOT EXISTS laydraw_after_65_stats ("
             + "strategy_id VARCHAR(64) NOT NULL,"
             + "event_id VARCHAR(64) NOT NULL,"
             + "market_id VARCHAR(64),"
@@ -582,42 +542,64 @@ public class LayDrawAfterHt00StatsService {
             + "away_team VARCHAR(255),"
             + "league VARCHAR(255),"
             + "placed_at_minute VARCHAR(32),"
-            + "entry_back_odds DOUBLE NOT NULL,"
-            + "entry_lay_odds DOUBLE NOT NULL,"
-            + "stake DOUBLE NOT NULL,"
-            + "state VARCHAR(16) NOT NULL,"
-            + "profit DOUBLE NOT NULL DEFAULT 0,"
+            + "entry_score VARCHAR(32),"
+            + "entry_back_odds DOUBLE,"
+            + "entry_lay_odds DOUBLE,"
+            + "stake DOUBLE,"
+            + "state VARCHAR(16),"
+            + "profit DOUBLE,"
             + "exit_at_minute VARCHAR(32),"
             + "exit_back_odds DOUBLE,"
-            + "close_reason VARCHAR(32),"
+            + "close_reason VARCHAR(64),"
             + "latest_score VARCHAR(32),"
             + "latest_minute VARCHAR(32),"
-            + "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-            + "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-            + "settled_at TIMESTAMP,"
-            + "UNIQUE(strategy_id, event_id)"
+            + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+            + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+            + "settled_at TIMESTAMP NULL,"
+            + "PRIMARY KEY(strategy_id, event_id)"
             + ")");
 
+    jdbcTemplate.execute("ALTER TABLE laydraw_after_65_stats ADD COLUMN IF NOT EXISTS entry_score VARCHAR(32)");
+
     jdbcTemplate.execute(
-        "CREATE TABLE IF NOT EXISTS laydraw_after_ht_0_0_strategy_balances ("
+        "CREATE TABLE IF NOT EXISTS laydraw_after_65_strategy_balances ("
             + "strategy_id VARCHAR(64) PRIMARY KEY,"
-            + "current_balance DOUBLE NOT NULL,"
-            + "settled_profit DOUBLE NOT NULL,"
-            + "open_bets INT NOT NULL,"
-            + "finished_bets INT NOT NULL,"
-            + "wins INT NOT NULL,"
-            + "losses INT NOT NULL,"
-            + "won_value DOUBLE NOT NULL,"
-            + "lost_value DOUBLE NOT NULL,"
-            + "stake DOUBLE NOT NULL,"
-            + "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            + "current_balance DOUBLE,"
+            + "settled_profit DOUBLE,"
+            + "open_bets INT,"
+            + "finished_bets INT,"
+            + "wins INT,"
+            + "losses INT,"
+            + "won_value DOUBLE,"
+            + "lost_value DOUBLE,"
+            + "stake DOUBLE,"
+            + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             + ")");
+  }
+
+  private double round2(double value) {
+    return Math.round(value * 100d) / 100d;
+  }
+
+  private String safe(String value) {
+    return value == null ? "" : value;
+  }
+
+  private Timestamp toTimestampOrNull(String instantText) {
+    String text = safe(instantText).trim();
+    if (text.isBlank()) {
+      return null;
+    }
+    try {
+      return Timestamp.from(Instant.parse(text));
+    } catch (Exception ex) {
+      return null;
+    }
   }
 
   private <T> T runWithTimeout(Supplier<T> supplier, T fallback, long timeoutMs) {
     try {
-      return CompletableFuture.supplyAsync(supplier)
-          .get(Math.max(500L, timeoutMs), TimeUnit.MILLISECONDS);
+      return CompletableFuture.supplyAsync(supplier).get(timeoutMs, TimeUnit.MILLISECONDS);
     } catch (Exception ex) {
       return fallback;
     }

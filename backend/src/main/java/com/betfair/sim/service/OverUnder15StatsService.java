@@ -18,12 +18,18 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -34,8 +40,14 @@ public class OverUnder15StatsService {
   private static final double STARTING_BANK = 1000d;
   private static final double STAKE = 20d;
   private static final int ENTRY_MINUTE = 20;
+  private static final int ENTRY_MAX_MINUTE = 25;
   private static final double MIN_ODDS = 1.45d;
+  private static final int MAX_MARKET_BACKFILL_CALLS = 8;
+  private static final Duration MARKET_BACKFILL_BUDGET = Duration.ofSeconds(2);
   private static final DateTimeFormatter AUDIT_FILE_DATE = DateTimeFormatter.BASIC_ISO_DATE;
+  private static final Pattern AUDIT_PATTERN =
+      Pattern.compile(
+          "^(.*?) vs (.*?) \\| placeBetAt=([^|]+) \\| minute=([^|]+) \\| odd=([0-9]+(?:[.,][0-9]+)?)$");
 
   private final GameService gameService;
   private final JdbcTemplate jdbcTemplate;
@@ -53,7 +65,7 @@ public class OverUnder15StatsService {
 
   public synchronized OverUnder15StatusResponse getStatus() {
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
-    List<LiveGameEntry> liveGames = gameService.betfairLiveGames();
+    List<LiveGameEntry> liveGames = runWithTimeout(gameService::betfairLiveGames, List.of(), 10000);
     Map<String, LiveGameEntry> liveGamesByEventId = new LinkedHashMap<>();
     for (LiveGameEntry game : liveGames) {
       String eventId = safe(game.getEventId()).trim();
@@ -61,9 +73,11 @@ public class OverUnder15StatsService {
         liveGamesByEventId.put(eventId, game);
       }
     }
-    Map<String, Double> over15ByEventId = loadOver15OddsByEventId(today);
+    Map<String, Double> over15ByEventId =
+        runWithTimeout(() -> loadOver15OddsByEventId(today), new LinkedHashMap<>(), 1500);
     backfillOver15OddsFromBetfairMarkets(liveGames, over15ByEventId);
-    Map<String, Game> betfairByEventId = loadBetfairGamesByEventId(today);
+    Map<String, Game> betfairByEventId =
+        runWithTimeout(() -> loadBetfairGamesByEventId(today), Map.of(), 1500);
 
     Map<String, OverUnder15BetRecord> betsByEventId = loadBetsByEventId();
     String now = Instant.now().toString();
@@ -81,7 +95,7 @@ public class OverUnder15StatsService {
       if (existing == null) {
         boolean shouldEnter =
             Boolean.TRUE.equals(game.isInPlay())
-                && minute >= ENTRY_MINUTE
+                && isWithinEntryWindow(minute)
                 && goals == 0
                 && odds != null
                 && odds >= MIN_ODDS;
@@ -135,6 +149,118 @@ public class OverUnder15StatsService {
     OverUnder15StatusResponse response = buildResponse(liveGames, bets, now);
     persistStrategyBalance(response, now);
     return response;
+  }
+
+  public synchronized OverUnder15StatusResponse reconcileFromAudit(String date) {
+    LocalDate day = date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC) : LocalDate.parse(date);
+    List<AuditEntry> auditEntries = loadAuditEntries(day);
+    if (auditEntries.isEmpty()) {
+      return getStatus();
+    }
+
+    Map<String, OverUnder15BetRecord> betsByEventId = loadBetsByEventId();
+    pruneInvalidOpenBetsByEntryWindow(betsByEventId);
+    List<Game> oddsGames =
+        runWithTimeout(() -> gameService.betfairMatchOddsForDate(day.toString()), List.of(), 7000);
+    Map<String, Game> oddsByMatchKey = new LinkedHashMap<>();
+    for (Game game : oddsGames) {
+      String key = matchKey(game == null ? null : game.getHomeTeam(), game == null ? null : game.getAwayTeam());
+      if (!key.isBlank()) {
+        oddsByMatchKey.putIfAbsent(key, game);
+      }
+    }
+
+    List<LiveGameEntry> liveGames = runWithTimeout(gameService::betfairLiveGames, List.of(), 7000);
+    Map<String, LiveGameEntry> liveByEventId = new LinkedHashMap<>();
+    Map<String, LiveGameEntry> liveByMatchKey = new LinkedHashMap<>();
+    for (LiveGameEntry live : liveGames) {
+      if (live == null) {
+        continue;
+      }
+      String eventId = safe(live.getEventId()).trim();
+      if (!eventId.isBlank()) {
+        liveByEventId.putIfAbsent(eventId, live);
+      }
+      String key = matchKey(live.getHomeTeam(), live.getAwayTeam());
+      if (!key.isBlank()) {
+        liveByMatchKey.putIfAbsent(key, live);
+      }
+    }
+
+    String now = Instant.now().toString();
+    for (AuditEntry entry : auditEntries) {
+      String key = matchKey(entry.homeTeam(), entry.awayTeam());
+      if (key.isBlank()) {
+        continue;
+      }
+      int placedMinute = parseMinute(entry.minute());
+      if (!isWithinEntryWindow(placedMinute)) {
+        continue;
+      }
+      Game oddsGame = oddsByMatchKey.get(key);
+      String eventId = safe(oddsGame == null ? null : oddsGame.getId()).trim();
+      if (eventId.isBlank() || betsByEventId.containsKey(eventId)) {
+        continue;
+      }
+
+      LiveGameEntry live = liveByEventId.get(eventId);
+      if (live == null) {
+        live = liveByMatchKey.get(key);
+      }
+
+      OverUnder15BetRecord created = new OverUnder15BetRecord();
+      created.setStrategyId(STRATEGY_ID);
+      created.setEventId(eventId);
+      created.setMarketId(
+          safe(
+              live != null && !safe(live.getMarketId()).isBlank()
+                  ? live.getMarketId()
+                  : oddsGame == null ? "" : oddsGame.getMarketId()));
+      created.setHomeTeam(entry.homeTeam());
+      created.setAwayTeam(entry.awayTeam());
+      created.setLeague(
+          safe(
+              live != null && !safe(live.getLeague()).isBlank()
+                  ? live.getLeague()
+                  : oddsGame == null ? "" : oddsGame.getLeague()));
+      created.setPlacedAtMinute(entry.minute());
+      created.setOdds(entry.odds());
+      created.setStake(STAKE);
+      created.setState("OPEN");
+      created.setProfit(0d);
+      created.setLatestScore(safe(live == null ? "0-0" : live.getScore()));
+      created.setLatestMinute(safe(live == null ? entry.minute() : live.getMinute()));
+      created.setCreatedAt(entry.placedAt());
+      created.setUpdatedAt(now);
+      insertBet(created);
+      betsByEventId.put(eventId, created);
+    }
+
+    return getStatus();
+  }
+
+  private void pruneInvalidOpenBetsByEntryWindow(Map<String, OverUnder15BetRecord> betsByEventId) {
+    if (betsByEventId == null || betsByEventId.isEmpty()) {
+      return;
+    }
+    List<String> toDelete = new ArrayList<>();
+    for (Map.Entry<String, OverUnder15BetRecord> entry : betsByEventId.entrySet()) {
+      OverUnder15BetRecord bet = entry.getValue();
+      if (bet == null) {
+        continue;
+      }
+      if (!"OPEN".equalsIgnoreCase(safe(bet.getState()))) {
+        continue;
+      }
+      int placedMinute = parseMinute(bet.getPlacedAtMinute());
+      if (!isWithinEntryWindow(placedMinute)) {
+        toDelete.add(entry.getKey());
+      }
+    }
+    for (String eventId : toDelete) {
+      deleteOpenBet(eventId);
+      betsByEventId.remove(eventId);
+    }
   }
 
   private OverUnder15StatusResponse buildResponse(
@@ -213,12 +339,31 @@ public class OverUnder15StatsService {
 
   private void backfillOver15OddsFromBetfairMarkets(
       List<LiveGameEntry> liveGames, Map<String, Double> over15ByEventId) {
+    Instant deadline = Instant.now().plus(MARKET_BACKFILL_BUDGET);
+    int calls = 0;
     for (LiveGameEntry game : liveGames) {
+      if (calls >= MAX_MARKET_BACKFILL_CALLS || Instant.now().isAfter(deadline)) {
+        return;
+      }
       String eventId = safe(game.getEventId()).trim();
       if (eventId.isBlank() || over15ByEventId.containsKey(eventId)) {
         continue;
       }
-      List<EventMarket> markets = gameService.betfairEventMarkets(eventId, List.of("OVER_UNDER_15"));
+      // Only backfill for matches that can actually trigger an entry.
+      int minute = parseMinute(game.getMinute());
+      int goals = parseGoals(game.getScore());
+      if (!Boolean.TRUE.equals(game.isInPlay())
+          || !isWithinEntryWindow(minute)
+          || goals != 0) {
+        continue;
+      }
+      calls++;
+      // Protect status latency: never block this endpoint on per-event market lookups.
+      List<EventMarket> markets =
+          runWithTimeout(
+              () -> gameService.betfairEventMarkets(eventId, List.of("OVER_UNDER_15")),
+              List.of(),
+              600);
       Double over15 = extractOver15BackOdds(markets);
       if (over15 != null) {
         over15ByEventId.put(eventId, over15);
@@ -459,6 +604,17 @@ public class OverUnder15StatsService {
         bet.getEventId());
   }
 
+  private void deleteOpenBet(String eventId) {
+    String id = safe(eventId).trim();
+    if (id.isBlank()) {
+      return;
+    }
+    jdbcTemplate.update(
+        "DELETE FROM overunder_15_stats WHERE strategy_id = ? AND event_id = ? AND state = 'OPEN'",
+        STRATEGY_ID,
+        id);
+  }
+
   private void persistStrategyBalance(OverUnder15StatusResponse status, String updatedAt) {
     jdbcTemplate.update(
         "MERGE INTO overunder_strategy_balances ("
@@ -569,4 +725,74 @@ public class OverUnder15StatsService {
             + "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
             + ")");
   }
+
+  private List<AuditEntry> loadAuditEntries(LocalDate day) {
+    Path file = auditDir.resolve("overunder_15_audit_" + day.format(AUDIT_FILE_DATE));
+    if (!Files.exists(file)) {
+      return List.of();
+    }
+    List<AuditEntry> entries = new ArrayList<>();
+    try {
+      for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+        String raw = safe(line).trim();
+        if (raw.isBlank()) {
+          continue;
+        }
+        Matcher matcher = AUDIT_PATTERN.matcher(raw);
+        if (!matcher.matches()) {
+          continue;
+        }
+        String home = matcher.group(1).trim();
+        String away = matcher.group(2).trim();
+        String placedAt = matcher.group(3).trim();
+        String minute = matcher.group(4).trim();
+        String oddRaw = matcher.group(5).trim().replace(',', '.');
+        double odd;
+        try {
+          odd = Double.parseDouble(oddRaw);
+        } catch (Exception ignored) {
+          continue;
+        }
+        if (home.isBlank() || away.isBlank() || odd <= 0d) {
+          continue;
+        }
+        entries.add(new AuditEntry(home, away, placedAt, minute, odd));
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException("Failed to read overunder audit file", ex);
+    }
+    return entries;
+  }
+
+  private String matchKey(String homeTeam, String awayTeam) {
+    return normalizeTeam(homeTeam) + "|" + normalizeTeam(awayTeam);
+  }
+
+  private String normalizeTeam(String value) {
+    String safeValue = safe(value);
+    String normalized =
+        Normalizer.normalize(safeValue, Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", " ")
+            .replaceAll("\\s{2,}", " ")
+            .trim();
+    return normalized;
+  }
+
+  private <T> T runWithTimeout(Supplier<T> supplier, T fallback, long timeoutMs) {
+    try {
+      return CompletableFuture.supplyAsync(supplier)
+          .get(Math.max(500L, timeoutMs), TimeUnit.MILLISECONDS);
+    } catch (Exception ex) {
+      return fallback;
+    }
+  }
+
+  private boolean isWithinEntryWindow(int minute) {
+    return minute >= ENTRY_MINUTE && minute <= ENTRY_MAX_MINUTE;
+  }
+
+  private record AuditEntry(
+      String homeTeam, String awayTeam, String placedAt, String minute, double odds) {}
 }

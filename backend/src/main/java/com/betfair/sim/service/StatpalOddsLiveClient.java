@@ -36,8 +36,14 @@ public class StatpalOddsLiveClient {
       ObjectMapper objectMapper,
       @Value("${statpal.odds-live.base-url:https://statpal.io/api/v2/soccer/odds/live}") String baseUrl,
       @Value("${statpal.odds-live.access-key:c6a0d160-93fa-467e-9f5b-0d59e78a14ca}") String accessKey,
-      @Value("${statpal.access-key:}") String fallbackAccessKey) {
-    this.restTemplate = restTemplateBuilder.build();
+      @Value("${statpal.access-key:}") String fallbackAccessKey,
+      @Value("${statpal.http.connect-timeout-ms:2500}") long connectTimeoutMs,
+      @Value("${statpal.http.read-timeout-ms:4000}") long readTimeoutMs) {
+    this.restTemplate =
+        restTemplateBuilder
+            .setConnectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
+            .setReadTimeout(Duration.ofMillis(Math.max(1000L, readTimeoutMs)))
+            .build();
     this.objectMapper = objectMapper;
     this.baseUrl = baseUrl;
     this.accessKey = accessKey;

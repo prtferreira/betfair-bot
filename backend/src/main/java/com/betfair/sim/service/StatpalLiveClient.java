@@ -2,6 +2,7 @@ package com.betfair.sim.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +32,14 @@ public class StatpalLiveClient {
       RestTemplateBuilder restTemplateBuilder,
       ObjectMapper objectMapper,
       @Value("${statpal.live.base-url:https://statpal.io/api/v2/soccer/matches/live}") String baseUrl,
-      @Value("${statpal.access-key:c6a0d160-93fa-467e-9f5b-0d59e78a14ca}") String accessKey) {
-    this.restTemplate = restTemplateBuilder.build();
+      @Value("${statpal.access-key:c6a0d160-93fa-467e-9f5b-0d59e78a14ca}") String accessKey,
+      @Value("${statpal.http.connect-timeout-ms:2500}") long connectTimeoutMs,
+      @Value("${statpal.http.read-timeout-ms:4000}") long readTimeoutMs) {
+    this.restTemplate =
+        restTemplateBuilder
+            .setConnectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
+            .setReadTimeout(Duration.ofMillis(Math.max(1000L, readTimeoutMs)))
+            .build();
     this.objectMapper = objectMapper;
     this.baseUrl = baseUrl;
     this.accessKey = accessKey;

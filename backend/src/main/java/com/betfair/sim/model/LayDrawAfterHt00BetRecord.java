@@ -8,6 +8,7 @@ public class LayDrawAfterHt00BetRecord {
   private String awayTeam;
   private String league;
   private String placedAtMinute;
+  private String entryScore;
   private double entryBackOdds;
   private double entryLayOdds;
   private double stake;
@@ -76,6 +77,14 @@ public class LayDrawAfterHt00BetRecord {
 
   public void setPlacedAtMinute(String placedAtMinute) {
     this.placedAtMinute = placedAtMinute;
+  }
+
+  public String getEntryScore() {
+    return entryScore;
+  }
+
+  public void setEntryScore(String entryScore) {
+    this.entryScore = entryScore;
   }
 
   public double getEntryBackOdds() {

@@ -27,6 +27,7 @@ import com.betfair.sim.service.InPlayStatusEntry;
 import com.betfair.sim.service.BestStrategyService;
 import com.betfair.sim.service.EarlyGoalHtStatsService;
 import com.betfair.sim.service.LayDrawAfterHt00StatsService;
+import com.betfair.sim.service.LayDrawAfter65StatsService;
 import com.betfair.sim.service.RecentEventsService;
 import com.betfair.sim.service.RefdataStatpalBetfairService;
 import com.betfair.sim.service.OverUnder15StatsService;
@@ -56,6 +57,7 @@ public class TradeController {
   private final OverUnder15StatsService overUnder15StatsService;
   private final EarlyGoalHtStatsService earlyGoalHtStatsService;
   private final LayDrawAfterHt00StatsService layDrawAfterHt00StatsService;
+  private final LayDrawAfter65StatsService layDrawAfter65StatsService;
 
   public TradeController(
       GameService gameService,
@@ -66,7 +68,8 @@ public class TradeController {
       RefdataStatpalBetfairService refdataStatpalBetfairService,
       OverUnder15StatsService overUnder15StatsService,
       EarlyGoalHtStatsService earlyGoalHtStatsService,
-      LayDrawAfterHt00StatsService layDrawAfterHt00StatsService) {
+      LayDrawAfterHt00StatsService layDrawAfterHt00StatsService,
+      LayDrawAfter65StatsService layDrawAfter65StatsService) {
     this.gameService = gameService;
     this.bestStrategyService = bestStrategyService;
     this.strategyService = strategyService;
@@ -76,6 +79,7 @@ public class TradeController {
     this.overUnder15StatsService = overUnder15StatsService;
     this.earlyGoalHtStatsService = earlyGoalHtStatsService;
     this.layDrawAfterHt00StatsService = layDrawAfterHt00StatsService;
+    this.layDrawAfter65StatsService = layDrawAfter65StatsService;
   }
 
   @GetMapping("/api/games")
@@ -366,6 +370,12 @@ public class TradeController {
     return overUnder15StatsService.getStatus();
   }
 
+  @PostMapping("/api/sim/overunder15/reconcile-audit")
+  public OverUnder15StatusResponse overUnder15ReconcileAudit(
+      @RequestParam(name = "date", required = false) String date) {
+    return overUnder15StatsService.reconcileFromAudit(date);
+  }
+
   @GetMapping("/api/sim/earlygoalht/status")
   public EarlyGoalHtStatusResponse earlyGoalHtStatus() {
     return earlyGoalHtStatsService.getStatus();
@@ -374,5 +384,10 @@ public class TradeController {
   @GetMapping("/api/sim/laydraw-after-ht-00/status")
   public LayDrawAfterHt00StatusResponse layDrawAfterHt00Status() {
     return layDrawAfterHt00StatsService.getStatus();
+  }
+
+  @GetMapping("/api/sim/laydraw-after-65/status")
+  public LayDrawAfterHt00StatusResponse layDrawAfter65Status() {
+    return layDrawAfter65StatsService.getStatus();
   }
 }

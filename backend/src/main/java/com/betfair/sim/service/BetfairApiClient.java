@@ -5,6 +5,7 @@ import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.EventSelection;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -52,10 +53,16 @@ public class BetfairApiClient {
       ObjectMapper objectMapper,
       BetfairSessionStore sessionStore,
       @Value("${betfair.rpc.base-url:https://api.betfair.com/exchange/betting/json-rpc/v1}")
-          String rpcBaseUrl,
+      String rpcBaseUrl,
       @Value("${betfair.app-key:}") String appKey,
-      @Value("${betfair.session-token:}") String sessionToken) {
-    this.restTemplate = restTemplateBuilder.build();
+      @Value("${betfair.session-token:}") String sessionToken,
+      @Value("${betfair.http.connect-timeout-ms:3000}") long connectTimeoutMs,
+      @Value("${betfair.http.read-timeout-ms:7000}") long readTimeoutMs) {
+    this.restTemplate =
+        restTemplateBuilder
+            .setConnectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
+            .setReadTimeout(Duration.ofMillis(Math.max(1000L, readTimeoutMs)))
+            .build();
     this.objectMapper = objectMapper;
     this.sessionStore = sessionStore;
     this.rpcBaseUrl = rpcBaseUrl;
@@ -311,6 +318,8 @@ public class BetfairApiClient {
           fetchMarketBookOdds(
               markets.stream().map(m -> m.marketId).toList(),
               LocalDate.now(ZoneOffset.UTC));
+      Map<String, AuxiliaryOdds> auxiliaryOddsByEventId =
+          fetchAuxiliaryOdds(markets, LocalDate.now(ZoneOffset.UTC));
 
       List<Game> games = new ArrayList<>();
       for (MatchOddsMarket market : markets) {
@@ -346,6 +355,11 @@ public class BetfairApiClient {
         game.setHomeLayOdds(homeLayOdds);
         game.setDrawLayOdds(drawLayOdds);
         game.setAwayLayOdds(awayLayOdds);
+        AuxiliaryOdds auxiliaryOdds = auxiliaryOddsByEventId.get(market.eventId);
+        if (auxiliaryOdds != null) {
+          game.setOver15Odds(auxiliaryOdds.over15Odds);
+          game.setUnder15Odds(auxiliaryOdds.under15Odds);
+        }
         games.add(game);
       }
       games.sort(Comparator.comparing(Game::getStartTime, Comparator.nullsLast(String::compareTo)));
