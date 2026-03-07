@@ -53,8 +53,16 @@ public class OverUnder15StatsService {
   public synchronized OverUnder15StatusResponse getStatus() {
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
     List<LiveGameEntry> liveGames = gameService.betfairLiveGames();
+    Map<String, LiveGameEntry> liveGamesByEventId = new LinkedHashMap<>();
+    for (LiveGameEntry game : liveGames) {
+      String eventId = safe(game.getEventId()).trim();
+      if (!eventId.isBlank()) {
+        liveGamesByEventId.put(eventId, game);
+      }
+    }
     Map<String, Double> over15ByEventId = loadOver15OddsByEventId(today);
     backfillOver15OddsFromBetfairMarkets(liveGames, over15ByEventId);
+    Map<String, Game> betfairByEventId = loadBetfairGamesByEventId(today);
 
     Map<String, OverUnder15BetRecord> betsByEventId = loadBetsByEventId();
     String now = Instant.now().toString();
@@ -120,6 +128,7 @@ public class OverUnder15StatsService {
       }
       updateBet(existing);
     }
+    settleStaleOpenBets(betsByEventId, liveGamesByEventId, betfairByEventId, now);
 
     List<OverUnder15BetRecord> bets = loadBets();
     OverUnder15StatusResponse response = buildResponse(liveGames, bets, now);
@@ -189,6 +198,18 @@ public class OverUnder15StatsService {
     return out;
   }
 
+  private Map<String, Game> loadBetfairGamesByEventId(LocalDate date) {
+    List<Game> games = gameService.betfairMatchOddsForDate(date == null ? null : date.toString());
+    Map<String, Game> out = new LinkedHashMap<>();
+    for (Game game : games) {
+      String eventId = safe(game.getId()).trim();
+      if (!eventId.isBlank()) {
+        out.put(eventId, game);
+      }
+    }
+    return out;
+  }
+
   private void backfillOver15OddsFromBetfairMarkets(
       List<LiveGameEntry> liveGames, Map<String, Double> over15ByEventId) {
     for (LiveGameEntry game : liveGames) {
@@ -242,6 +263,75 @@ public class OverUnder15StatsService {
       return true;
     }
     return Boolean.FALSE.equals(game.isInPlay());
+  }
+
+  private void settleStaleOpenBets(
+      Map<String, OverUnder15BetRecord> betsByEventId,
+      Map<String, LiveGameEntry> liveGamesByEventId,
+      Map<String, Game> betfairByEventId,
+      String now) {
+    for (OverUnder15BetRecord bet : betsByEventId.values()) {
+      if (!"OPEN".equalsIgnoreCase(safe(bet.getState()))) {
+        continue;
+      }
+      String eventId = safe(bet.getEventId()).trim();
+      if (eventId.isBlank()) {
+        continue;
+      }
+      if (liveGamesByEventId.containsKey(eventId)) {
+        continue;
+      }
+
+      Game betfairGame = betfairByEventId.get(eventId);
+      if (betfairGame != null) {
+        String marketStatus = safe(betfairGame.getMarketStatus()).trim().toUpperCase(Locale.ROOT);
+        if (isTerminalMarketStatus(marketStatus) || Boolean.FALSE.equals(betfairGame.getInPlay())) {
+          settleFromLatestScore(bet, now);
+          updateBet(bet);
+          continue;
+        }
+      }
+
+      // Fallback: if feed no longer returns the match and we have a stale 90+ snapshot,
+      // close the bet using latest known score to avoid permanently stuck OPEN rows.
+      if (isStaleAtOrPastNinety(bet, now)) {
+        settleFromLatestScore(bet, now);
+        updateBet(bet);
+      }
+    }
+  }
+
+  private boolean isTerminalMarketStatus(String marketStatus) {
+    return "CLOSED".equals(marketStatus)
+        || "INACTIVE".equals(marketStatus)
+        || "SETTLED".equals(marketStatus);
+  }
+
+  private boolean isStaleAtOrPastNinety(OverUnder15BetRecord bet, String now) {
+    int minute = parseMinute(bet.getLatestMinute());
+    if (minute < 90) {
+      return false;
+    }
+    try {
+      Instant nowInstant = Instant.parse(now);
+      Instant updated = Instant.parse(safe(bet.getUpdatedAt()).trim());
+      return Duration.between(updated, nowInstant).toMinutes() >= 20;
+    } catch (Exception ex) {
+      return false;
+    }
+  }
+
+  private void settleFromLatestScore(OverUnder15BetRecord bet, String now) {
+    int goals = parseGoals(bet.getLatestScore());
+    if (goals >= 2) {
+      bet.setState("WON");
+      bet.setProfit(round2((bet.getOdds() - 1d) * bet.getStake()));
+    } else {
+      bet.setState("LOST");
+      bet.setProfit(round2(-bet.getStake()));
+    }
+    bet.setSettledAt(now);
+    bet.setUpdatedAt(now);
   }
 
   private int parseMinute(String raw) {
