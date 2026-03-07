@@ -6,6 +6,8 @@ import com.betfair.sim.model.BestStrategyMonitorEntry;
 import com.betfair.sim.model.AnalyticsGameEntry;
 import com.betfair.sim.model.AnalyticsGoalsEstimate;
 import com.betfair.sim.model.EndedZeroZeroEntry;
+import com.betfair.sim.model.EarlyGoalHtStatusResponse;
+import com.betfair.sim.model.LayDrawAfterHt00StatusResponse;
 import com.betfair.sim.model.LiveGameEntry;
 import com.betfair.sim.model.MappedLiveGameEntry;
 import com.betfair.sim.model.OverUnder15StatusResponse;
@@ -23,6 +25,8 @@ import java.io.UncheckedIOException;
 import com.betfair.sim.service.GameService;
 import com.betfair.sim.service.InPlayStatusEntry;
 import com.betfair.sim.service.BestStrategyService;
+import com.betfair.sim.service.EarlyGoalHtStatsService;
+import com.betfair.sim.service.LayDrawAfterHt00StatsService;
 import com.betfair.sim.service.RecentEventsService;
 import com.betfair.sim.service.RefdataStatpalBetfairService;
 import com.betfair.sim.service.OverUnder15StatsService;
@@ -50,6 +54,8 @@ public class TradeController {
   private final RecentEventsService recentEventsService;
   private final RefdataStatpalBetfairService refdataStatpalBetfairService;
   private final OverUnder15StatsService overUnder15StatsService;
+  private final EarlyGoalHtStatsService earlyGoalHtStatsService;
+  private final LayDrawAfterHt00StatsService layDrawAfterHt00StatsService;
 
   public TradeController(
       GameService gameService,
@@ -58,7 +64,9 @@ public class TradeController {
       SimulationBetService simulationBetService,
       RecentEventsService recentEventsService,
       RefdataStatpalBetfairService refdataStatpalBetfairService,
-      OverUnder15StatsService overUnder15StatsService) {
+      OverUnder15StatsService overUnder15StatsService,
+      EarlyGoalHtStatsService earlyGoalHtStatsService,
+      LayDrawAfterHt00StatsService layDrawAfterHt00StatsService) {
     this.gameService = gameService;
     this.bestStrategyService = bestStrategyService;
     this.strategyService = strategyService;
@@ -66,6 +74,8 @@ public class TradeController {
     this.recentEventsService = recentEventsService;
     this.refdataStatpalBetfairService = refdataStatpalBetfairService;
     this.overUnder15StatsService = overUnder15StatsService;
+    this.earlyGoalHtStatsService = earlyGoalHtStatsService;
+    this.layDrawAfterHt00StatsService = layDrawAfterHt00StatsService;
   }
 
   @GetMapping("/api/games")
@@ -354,5 +364,15 @@ public class TradeController {
   @GetMapping("/api/sim/overunder15/status")
   public OverUnder15StatusResponse overUnder15Status() {
     return overUnder15StatsService.getStatus();
+  }
+
+  @GetMapping("/api/sim/earlygoalht/status")
+  public EarlyGoalHtStatusResponse earlyGoalHtStatus() {
+    return earlyGoalHtStatsService.getStatus();
+  }
+
+  @GetMapping("/api/sim/laydraw-after-ht-00/status")
+  public LayDrawAfterHt00StatusResponse layDrawAfterHt00Status() {
+    return layDrawAfterHt00StatsService.getStatus();
   }
 }

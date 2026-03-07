@@ -220,6 +220,9 @@ public class GameService {
       entry.setHomeOdds(game.getHomeOdds());
       entry.setDrawOdds(game.getDrawOdds());
       entry.setAwayOdds(game.getAwayOdds());
+      entry.setHomeLayOdds(game.getHomeLayOdds());
+      entry.setDrawLayOdds(game.getDrawLayOdds());
+      entry.setAwayLayOdds(game.getAwayLayOdds());
       String score = statpal == null ? "" : toScore(statpal.getHomeGoals(), statpal.getAwayGoals());
       entry.setScore(score.isBlank() ? "-" : score);
       if (statpal != null) {

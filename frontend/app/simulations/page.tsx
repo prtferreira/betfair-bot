@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import "./simulations.css";
 
-type StrategyTab = "overunder1_5";
+type StrategyTab = "overunder1_5" | "early_goal_ht" | "laydraw_after_ht_0_0";
 type BetState = "OPEN" | "WON" | "LOST";
 type ViewTab = "open" | "wins" | "losses";
 
@@ -17,9 +17,15 @@ interface LiveGameEntry {
   inPlay?: boolean;
   score?: string;
   minute?: string;
+  homeOdds?: number;
+  drawOdds?: number;
+  awayOdds?: number;
+  homeLayOdds?: number;
+  drawLayOdds?: number;
+  awayLayOdds?: number;
 }
 
-interface SimBet {
+interface OverUnderSimBet {
   eventId: string;
   marketId: string;
   homeTeam: string;
@@ -34,7 +40,26 @@ interface SimBet {
   latestMinute: string;
 }
 
-interface OverUnder15Status {
+interface EarlyGoalHtSimBet {
+  eventId: string;
+  marketId: string;
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  placedAtMinute: string;
+  entryBackOdds: number;
+  entryLayOdds: number;
+  stake: number;
+  state: BetState;
+  profit: number;
+  exitAtMinute?: string;
+  exitBackOdds?: number;
+  closeReason?: string;
+  latestScore: string;
+  latestMinute: string;
+}
+
+interface StrategyStatus {
   strategyId: string;
   bank: number;
   settledProfit: number;
@@ -47,7 +72,7 @@ interface OverUnder15Status {
   stake: number;
   updatedAt: string;
   liveGames: LiveGameEntry[];
-  bets: SimBet[];
+  bets: (OverUnderSimBet | EarlyGoalHtSimBet)[];
 }
 
 const API_BASE =
@@ -71,17 +96,23 @@ export default function SimulationsPage() {
   const [viewTab, setViewTab] = useState<ViewTab>("open");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<OverUnder15Status | null>(null);
+  const [status, setStatus] = useState<StrategyStatus | null>(null);
 
   const fetchSnapshot = async (): Promise<void> => {
+    const endpoint =
+      activeTab === "early_goal_ht"
+        ? "/api/sim/earlygoalht/status"
+        : activeTab === "laydraw_after_ht_0_0"
+        ? "/api/sim/laydraw-after-ht-00/status"
+        : "/api/sim/overunder15/status";
     const response = await fetch(
-      `${API_BASE}/api/sim/overunder15/status?ts=${Date.now()}`,
+      `${API_BASE}${endpoint}?ts=${Date.now()}`,
       { cache: "no-store" }
     );
     if (!response.ok) {
       throw new Error(`Failed loading simulation status (${response.status})`);
     }
-    const payload = (await response.json()) as OverUnder15Status;
+    const payload = (await response.json()) as StrategyStatus;
     setStatus(payload);
   };
 
@@ -105,7 +136,7 @@ export default function SimulationsPage() {
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [activeTab]);
 
   const liveGameByEventId = useMemo(() => {
     const map: Record<string, LiveGameEntry> = {};
@@ -145,7 +176,26 @@ export default function SimulationsPage() {
     if (!canExportFinished || visibleBets.length === 0) {
       return;
     }
-    const header = [
+    const isLayDrawExport = activeTab !== "overunder1_5";
+    const header = isLayDrawExport
+      ? [
+          "eventId",
+          "marketId",
+          "league",
+          "homeTeam",
+          "awayTeam",
+          "state",
+          "placedAtMinute",
+          "latestMinute",
+          "latestScore",
+          "entryBackOdds",
+          "entryLayOdds",
+          "exitBackOdds",
+          "closeReason",
+          "stake",
+          "profit",
+        ]
+      : [
       "eventId",
       "marketId",
       "league",
@@ -161,20 +211,44 @@ export default function SimulationsPage() {
     ];
     const lines = [header.join(",")];
     for (const bet of visibleBets) {
+      if (isLayDrawExport) {
+        const typedBet = bet as EarlyGoalHtSimBet;
+        lines.push(
+          [
+            csvValue(typedBet.eventId),
+            csvValue(typedBet.marketId),
+            csvValue(typedBet.league),
+            csvValue(typedBet.homeTeam),
+            csvValue(typedBet.awayTeam),
+            csvValue(typedBet.state),
+            csvValue(typedBet.placedAtMinute),
+            csvValue(typedBet.latestMinute),
+            csvValue(typedBet.latestScore),
+            csvValue(typedBet.entryBackOdds?.toFixed(2) || ""),
+            csvValue(typedBet.entryLayOdds?.toFixed(2) || ""),
+            csvValue(typedBet.exitBackOdds?.toFixed(2) || ""),
+            csvValue(typedBet.closeReason || ""),
+            csvValue(typedBet.stake.toFixed(2)),
+            csvValue(typedBet.profit.toFixed(2)),
+          ].join(",")
+        );
+        continue;
+      }
+      const typedBet = bet as OverUnderSimBet;
       lines.push(
         [
-          csvValue(bet.eventId),
-          csvValue(bet.marketId),
-          csvValue(bet.league),
-          csvValue(bet.homeTeam),
-          csvValue(bet.awayTeam),
-          csvValue(bet.state),
-          csvValue(bet.placedAtMinute),
-          csvValue(bet.latestMinute),
-          csvValue(bet.latestScore),
-          csvValue(bet.odds.toFixed(2)),
-          csvValue(bet.stake.toFixed(2)),
-          csvValue(bet.profit.toFixed(2)),
+          csvValue(typedBet.eventId),
+          csvValue(typedBet.marketId),
+          csvValue(typedBet.league),
+          csvValue(typedBet.homeTeam),
+          csvValue(typedBet.awayTeam),
+          csvValue(typedBet.state),
+          csvValue(typedBet.placedAtMinute),
+          csvValue(typedBet.latestMinute),
+          csvValue(typedBet.latestScore),
+          csvValue(typedBet.odds.toFixed(2)),
+          csvValue(typedBet.stake.toFixed(2)),
+          csvValue(typedBet.profit.toFixed(2)),
         ].join(",")
       );
     }
@@ -250,6 +324,20 @@ export default function SimulationsPage() {
         >
           overunder1_5
         </button>
+        <button
+          type="button"
+          className={`sim-tab ${activeTab === "early_goal_ht" ? "sim-tab--active" : ""}`}
+          onClick={() => setActiveTab("early_goal_ht")}
+        >
+          early_goal_ht
+        </button>
+        <button
+          type="button"
+          className={`sim-tab ${activeTab === "laydraw_after_ht_0_0" ? "sim-tab--active" : ""}`}
+          onClick={() => setActiveTab("laydraw_after_ht_0_0")}
+        >
+          laydraw_after_ht_0_0
+        </button>
       </div>
       <div className="sim-tabs" role="tablist" aria-label="Bet views">
         <button
@@ -324,8 +412,11 @@ export default function SimulationsPage() {
           </div>
         </div>
         <p className="sim-hint">
-          Strategy: Back Over 1.5 at minute 20+ only when score is 0-0 and odds are at least 1.45. Stake {stake} EUR. Last updated{" "}
-          {lastUpdated}.
+          {activeTab === "overunder1_5"
+            ? `Strategy: Back Over 1.5 at minute 20+ only when score is 0-0 and odds are at least 1.45. Stake ${stake} EUR. Last updated ${lastUpdated}.`
+            : activeTab === "early_goal_ht"
+            ? `Strategy: Early Goal HT: Lay Draw close to kickoff for balanced games, close on first goal (green-up) or around 25'. Stake ${stake} EUR. Last updated ${lastUpdated}.`
+            : `Strategy: LayDrawAfterHT0_0: Lay Draw just after second half starts (46'-50') only in 0-0, draw lay <= 3, balanced match (home/away odds gap <= 1.5). Close on first goal or at 70'. Stake ${stake} EUR. Last updated ${lastUpdated}.`}
         </p>
       </section>
 
@@ -345,9 +436,23 @@ export default function SimulationsPage() {
             const state = bet.state;
             const stateClass =
               state === "WON" ? "sim-pill--won" : state === "LOST" ? "sim-pill--lost" : "sim-pill--open";
+            const isLayDrawStrategy = activeTab !== "overunder1_5";
+            const earlyBet = bet as EarlyGoalHtSimBet;
+            const overBet = bet as OverUnderSimBet;
             const possibleProfit =
-              state === "OPEN" ? Number((bet.stake * bet.odds - bet.stake).toFixed(2)) : null;
-            const possibleLoss = state === "OPEN" ? Number(bet.stake.toFixed(2)) : null;
+              state !== "OPEN"
+                ? null
+                : isLayDrawStrategy
+                ? Number(earlyBet.stake.toFixed(2))
+                : Number((overBet.stake * overBet.odds - overBet.stake).toFixed(2));
+            const possibleLoss =
+              state !== "OPEN"
+                ? null
+                : isLayDrawStrategy
+                ? Number(
+                    (((Math.max(1.01, earlyBet.entryLayOdds || 1.01) - 1) * earlyBet.stake)).toFixed(2)
+                  )
+                : Number(overBet.stake.toFixed(2));
 
             return (
               <li key={`${bet.marketId}|${bet.eventId}`} className="sim-row">
@@ -370,22 +475,76 @@ export default function SimulationsPage() {
                   </div>
                   <div>
                     <div className="sim-k">Entry odds</div>
-                    <div className="sim-v">{bet.odds.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="sim-k">
-                      {state === "OPEN" ? "Possible P/L" : "Virtual P/L"}
-                    </div>
-                    <div className={`sim-v ${bet.profit < 0 ? "sim-neg" : "sim-pos"}`}>
-                      {state === "OPEN"
-                        ? `+${possibleProfit?.toFixed(2)} / -${possibleLoss?.toFixed(2)}`
-                        : `${bet.profit >= 0 ? "+" : ""}${bet.profit.toFixed(2)}`}
+                    <div className="sim-v">
+                      {isLayDrawStrategy
+                        ? `Draw B ${earlyBet.entryBackOdds?.toFixed(2) || "-"} / L ${earlyBet.entryLayOdds?.toFixed(2) || "-"}`
+                        : overBet.odds.toFixed(2)}
                     </div>
                   </div>
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Live draw B/L</div>
+                      <div className="sim-v">
+                        {(game?.drawOdds ?? 0) > 0
+                          ? `${game?.drawOdds?.toFixed(2)} / ${game?.drawLayOdds?.toFixed(2) || "-"}`
+                          : "-"}
+                      </div>
+                    </div>
+                  ) : null}
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Close reason</div>
+                      <div className="sim-v">{earlyBet.closeReason || "-"}</div>
+                    </div>
+                  ) : null}
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Exit draw back</div>
+                      <div className="sim-v">
+                        {earlyBet.exitBackOdds && earlyBet.exitBackOdds > 0
+                          ? earlyBet.exitBackOdds.toFixed(2)
+                          : "-"}
+                      </div>
+                    </div>
+                  ) : null}
+                  {isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">Exit minute</div>
+                      <div className="sim-v">{earlyBet.exitAtMinute || "-"}</div>
+                    </div>
+                  ) : null}
+                  {!isLayDrawStrategy ? (
+                    <div>
+                      <div className="sim-k">
+                        {state === "OPEN" ? "Possible P/L" : "Virtual P/L"}
+                      </div>
+                      <div className={`sim-v ${bet.profit < 0 ? "sim-neg" : "sim-pos"}`}>
+                        {state === "OPEN"
+                          ? `+${possibleProfit?.toFixed(2)} / -${possibleLoss?.toFixed(2)}`
+                          : `${bet.profit >= 0 ? "+" : ""}${bet.profit.toFixed(2)}`}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="sim-k">
+                        {state === "OPEN" ? "Possible P/L" : "Greenbook P/L"}
+                      </div>
+                      <div className={`sim-v ${bet.profit < 0 ? "sim-neg" : "sim-pos"}`}>
+                        {state === "OPEN"
+                          ? `+${possibleProfit?.toFixed(2)} / -${possibleLoss?.toFixed(2)}`
+                          : `${bet.profit >= 0 ? "+" : ""}${bet.profit.toFixed(2)}`}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {state === "OPEN" ? (
+                {state === "OPEN" && !isLayDrawStrategy ? (
                   <div className="sim-league">
-                    {bet.stake.toFixed(2)} EUR * {bet.odds.toFixed(2)} = Possible profit +{possibleProfit?.toFixed(2)} EUR vs possible loss -{possibleLoss?.toFixed(2)} EUR
+                    {overBet.stake.toFixed(2)} EUR * {overBet.odds.toFixed(2)} = Possible profit +{possibleProfit?.toFixed(2)} EUR vs possible loss -{possibleLoss?.toFixed(2)} EUR
+                  </div>
+                ) : null}
+                {state === "OPEN" && isLayDrawStrategy ? (
+                  <div className="sim-league">
+                    Lay Draw stake {earlyBet.stake.toFixed(2)} EUR at {earlyBet.entryLayOdds?.toFixed(2) || "-"}: possible win +{possibleProfit?.toFixed(2)} EUR vs liability -{possibleLoss?.toFixed(2)} EUR
                   </div>
                 ) : null}
               </li>

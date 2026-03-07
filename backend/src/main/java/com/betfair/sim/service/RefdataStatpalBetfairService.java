@@ -116,7 +116,8 @@ public class RefdataStatpalBetfairService {
       mappedCount++;
     }
 
-    // 2) Fallback auto-map by one-side name similarity and long-token overlaps (>4 chars).
+    // 2) Fallback auto-map:
+    // enough to have 1 shared long token (>4 chars) on either home OR away side.
     for (RefdataStatpalBetfairApiMatch api : apiPool) {
       if (usedApiIds.contains(api.getApiMatchId())) {
         continue;
@@ -134,14 +135,14 @@ public class RefdataStatpalBetfairService {
         int homeLongOverlap = longWordOverlapCount(api.getHomeTeam(), betfair.getHomeTeam());
         int awayLongOverlap = longWordOverlapCount(api.getAwayTeam(), betfair.getAwayTeam());
         int longOverlapTotal = homeLongOverlap + awayLongOverlap;
+        boolean hasSingleLongWordMatch = homeLongOverlap > 0 || awayLongOverlap > 0;
+        if (!hasSingleLongWordMatch) {
+          continue;
+        }
         double score = Math.max(Math.max(homeScore, awayScore), Math.max(homeLongWordScore, awayLongWordScore));
         if (longOverlapTotal > 0) {
           // Shared long words (>4 chars) are a strong signal for near-identical team names.
           score = Math.max(score, Math.min(0.98d, 0.78d + (0.07d * longOverlapTotal)));
-        }
-        boolean hasLongWordAnchor = homeLongWordScore >= 0.80d || awayLongWordScore >= 0.80d;
-        if (score < 0.70d && !hasLongWordAnchor) {
-          continue;
         }
         String matchedSide = homeScore >= awayScore ? "home" : "away";
         if (homeLongWordScore > awayLongWordScore && homeLongWordScore > homeScore) {
