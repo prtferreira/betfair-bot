@@ -161,6 +161,9 @@ export default function IdMappingPage() {
     source: string,
     confidenceScore?: number
   ): Promise<void> => {
+    if (saving) {
+      return;
+    }
     setSaving(true);
     setError(null);
     setStatusMessage(null);
@@ -180,7 +183,34 @@ export default function IdMappingPage() {
         throw new Error(`Failed to save mapping (${response.status})`);
       }
       setStatusMessage("Mapping saved.");
-      await load(date);
+      setPayload((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const api = prev.apiMatches.find((m) => m.apiMatchId === apiMatchId);
+        const betfair = prev.betfairMatches.find((m) => m.betfairEventId === betfairEventId);
+        if (!api || !betfair) {
+          return prev;
+        }
+        const nextMappings = prev.mappings.filter(
+          (m) => m.apiMatchId !== apiMatchId && m.betfairEventId !== betfairEventId
+        );
+        nextMappings.unshift({
+          date: prev.date,
+          apiMatchId,
+          apiHomeTeam: api.homeTeam,
+          apiAwayTeam: api.awayTeam,
+          betfairEventId,
+          betfairHomeTeam: betfair.homeTeam,
+          betfairAwayTeam: betfair.awayTeam,
+          apiStartTime: api.startTime,
+          betfairStartTime: betfair.startTime,
+          source,
+          confidenceScore,
+          updatedAt: new Date().toISOString(),
+        });
+        return { ...prev, mappings: nextMappings };
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save mapping";
       setError(message);
@@ -390,7 +420,7 @@ export default function IdMappingPage() {
                   onDrop={(event) => {
                     event.preventDefault();
                     const apiMatchId = event.dataTransfer.getData("text/plain");
-                    if (!apiMatchId) {
+                    if (!apiMatchId || saving) {
                       return;
                     }
                     void saveMap(apiMatchId, betfair.betfairEventId, "manual-dnd");

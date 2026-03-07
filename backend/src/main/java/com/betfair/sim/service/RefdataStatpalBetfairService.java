@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,6 +42,7 @@ public class RefdataStatpalBetfairService {
   private static final DateTimeFormatter API_MATCH_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
   private static final DateTimeFormatter API_MATCH_DATE_TIME =
       DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+  private static final Duration CANDIDATE_CACHE_TTL = Duration.ofMinutes(10);
   private static final Set<String> STOP_WORDS =
       Set.of("fc", "cf", "sc", "fk", "ac", "afc", "club", "de", "cd");
 
@@ -48,6 +50,7 @@ public class RefdataStatpalBetfairService {
   private final GameService gameService;
   private final JdbcTemplate jdbcTemplate;
   private final Path apiDir;
+  private final Map<LocalDate, CandidateSnapshot> candidateCache = new ConcurrentHashMap<>();
 
   public RefdataStatpalBetfairService(
       ObjectMapper objectMapper,
@@ -64,8 +67,9 @@ public class RefdataStatpalBetfairService {
   public RefdataStatpalBetfairCandidatesResponse candidates(String date) {
     LocalDate resolvedDate =
         date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC) : LocalDate.parse(date);
-    List<RefdataStatpalBetfairApiMatch> apiMatches = loadApiMatches(resolvedDate);
-    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = loadBetfairMatches(resolvedDate);
+    CandidateSnapshot snapshot = getOrLoadSnapshot(resolvedDate);
+    List<RefdataStatpalBetfairApiMatch> apiMatches = snapshot.apiMatches();
+    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = snapshot.betfairMatches();
     List<RefdataStatpalBetfairMappingEntry> mappings =
         enrichMappingsWithStartTimes(loadMappings(resolvedDate), apiMatches, betfairMatches);
     return new RefdataStatpalBetfairCandidatesResponse(
@@ -75,8 +79,9 @@ public class RefdataStatpalBetfairService {
   public int autoMapByHomeAwayNames(String date) {
     LocalDate resolvedDate =
         date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC) : LocalDate.parse(date);
-    List<RefdataStatpalBetfairApiMatch> apiMatches = loadApiMatches(resolvedDate);
-    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = loadBetfairMatches(resolvedDate);
+    CandidateSnapshot snapshot = getOrLoadSnapshot(resolvedDate);
+    List<RefdataStatpalBetfairApiMatch> apiMatches = snapshot.apiMatches();
+    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = snapshot.betfairMatches();
     List<RefdataStatpalBetfairMappingEntry> mappings = loadMappings(resolvedDate);
 
     Set<String> mappedApiIds =
@@ -497,8 +502,9 @@ public class RefdataStatpalBetfairService {
       Double confidenceScore) {
     LocalDate resolvedDate =
         date == null || date.isBlank() ? LocalDate.now(ZoneOffset.UTC) : LocalDate.parse(date);
-    List<RefdataStatpalBetfairApiMatch> apiMatches = loadApiMatches(resolvedDate);
-    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = loadBetfairMatches(resolvedDate);
+    CandidateSnapshot snapshot = getOrLoadSnapshot(resolvedDate);
+    List<RefdataStatpalBetfairApiMatch> apiMatches = snapshot.apiMatches();
+    List<RefdataStatpalBetfairBetfairMatch> betfairMatches = snapshot.betfairMatches();
     RefdataStatpalBetfairApiMatch apiMatch =
         apiMatches.stream().filter(m -> apiMatchId.equals(m.getApiMatchId())).findFirst().orElse(null);
     RefdataStatpalBetfairBetfairMatch betfairMatch =
@@ -900,6 +906,18 @@ public class RefdataStatpalBetfairService {
     return (second.kickoffDeltaMinutes() - best.kickoffDeltaMinutes()) >= 45L;
   }
 
+  private CandidateSnapshot getOrLoadSnapshot(LocalDate date) {
+    CandidateSnapshot cached = candidateCache.get(date);
+    Instant now = Instant.now();
+    if (cached != null && Duration.between(cached.loadedAt(), now).compareTo(CANDIDATE_CACHE_TTL) < 0) {
+      return cached;
+    }
+    CandidateSnapshot reloaded =
+        new CandidateSnapshot(loadApiMatches(date), loadBetfairMatches(date), now);
+    candidateCache.put(date, reloaded);
+    return reloaded;
+  }
+
   private List<RefdataStatpalBetfairMappingEntry> loadMappings(LocalDate date) {
     return jdbcTemplate.query(
         "SELECT match_date, statpal_main_id, statpal_home_team, statpal_away_team, "
@@ -1081,4 +1099,9 @@ public class RefdataStatpalBetfairService {
       String matchedSide,
       int longOverlapTotal,
       long kickoffDeltaMinutes) {}
+
+  private record CandidateSnapshot(
+      List<RefdataStatpalBetfairApiMatch> apiMatches,
+      List<RefdataStatpalBetfairBetfairMatch> betfairMatches,
+      Instant loadedAt) {}
 }

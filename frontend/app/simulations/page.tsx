@@ -95,6 +95,8 @@ export default function SimulationsPage() {
   const [activeTab, setActiveTab] = useState<StrategyTab>("overunder1_5");
   const [viewTab, setViewTab] = useState<ViewTab>("open");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StrategyStatus | null>(null);
 
@@ -105,28 +107,56 @@ export default function SimulationsPage() {
         : activeTab === "laydraw_after_ht_0_0"
         ? "/api/sim/laydraw-after-ht-00/status"
         : "/api/sim/overunder15/status";
-    const response = await fetch(
-      `${API_BASE}${endpoint}?ts=${Date.now()}`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) {
-      throw new Error(`Failed loading simulation status (${response.status})`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(
+        `${API_BASE}${endpoint}?ts=${Date.now()}`,
+        { cache: "no-store", signal: controller.signal }
+      );
+      if (!response.ok) {
+        throw new Error(`Failed loading simulation status (${response.status})`);
+      }
+      const payload = (await response.json()) as StrategyStatus;
+      setStatus(payload);
+    } finally {
+      clearTimeout(timeout);
     }
-    const payload = (await response.json()) as StrategyStatus;
-    setStatus(payload);
   };
 
   useEffect(() => {
     let active = true;
     const load = async (): Promise<void> => {
       try {
-        if (active) setError(null);
+        if (active) {
+          setError(null);
+          setRefreshing(true);
+          setRefreshProgress(10);
+        }
         await fetchSnapshot();
+        if (active) {
+          setRefreshProgress(100);
+        }
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed loading simulations");
+        const message =
+          err instanceof Error && err.name === "AbortError"
+            ? "Simulation status request timed out after 15s. Backend is likely waiting on live APIs."
+            : err instanceof Error
+            ? err.message
+            : "Failed loading simulations";
+        setError(message);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setTimeout(() => {
+            if (!active) {
+              return;
+            }
+            setRefreshing(false);
+            setRefreshProgress(0);
+          }, 250);
+        }
       }
     };
 
@@ -137,6 +167,21 @@ export default function SimulationsPage() {
       clearInterval(timer);
     };
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!refreshing) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setRefreshProgress((prev) => {
+        if (prev >= 92) {
+          return prev;
+        }
+        return prev + 4;
+      });
+    }, 200);
+    return () => clearInterval(timer);
+  }, [refreshing]);
 
   const liveGameByEventId = useMemo(() => {
     const map: Record<string, LiveGameEntry> = {};
@@ -420,7 +465,25 @@ export default function SimulationsPage() {
         </p>
       </section>
 
-      {loading ? <p className="sim-hint">Loading live simulations...</p> : null}
+      {refreshing ? (
+        <div className="sim-loading">
+          <div className="sim-loading__text">
+            {loading ? "Loading live simulations..." : "Refreshing live simulations..."}
+          </div>
+          <div
+            className="sim-loading__bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(refreshProgress)}
+          >
+            <div
+              className="sim-loading__fill"
+              style={{ width: `${Math.max(0, Math.min(100, refreshProgress))}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
       {error ? <p className="sim-hint sim-neg">{error}</p> : null}
       {!loading && !error && countMismatch ? (
         <p className="sim-hint sim-neg">

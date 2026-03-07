@@ -293,9 +293,9 @@ public class OverUnder15StatsService {
         }
       }
 
-      // Fallback: if feed no longer returns the match and we have a stale 90+ snapshot,
-      // close the bet using latest known score to avoid permanently stuck OPEN rows.
-      if (isStaleAtOrPastNinety(bet, now)) {
+      // Fallback: if feed no longer returns the match and snapshot is stale,
+      // close using latest known score to avoid permanently stuck OPEN rows.
+      if (isStaleAtOrPastNinety(bet, now) || isStaleByLastUpdate(bet.getUpdatedAt(), now, 45)) {
         settleFromLatestScore(bet, now);
         updateBet(bet);
       }
@@ -317,6 +317,16 @@ public class OverUnder15StatsService {
       Instant nowInstant = Instant.parse(now);
       Instant updated = Instant.parse(safe(bet.getUpdatedAt()).trim());
       return Duration.between(updated, nowInstant).toMinutes() >= 20;
+    } catch (Exception ex) {
+      return false;
+    }
+  }
+
+  private boolean isStaleByLastUpdate(String updatedAt, String now, long minMinutes) {
+    try {
+      Instant nowInstant = Instant.parse(now);
+      Instant updated = Instant.parse(safe(updatedAt).trim());
+      return Duration.between(updated, nowInstant).toMinutes() >= minMinutes;
     } catch (Exception ex) {
       return false;
     }

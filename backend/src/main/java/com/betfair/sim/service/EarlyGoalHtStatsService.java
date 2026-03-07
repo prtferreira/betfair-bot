@@ -2,6 +2,7 @@ package com.betfair.sim.service;
 
 import com.betfair.sim.model.EarlyGoalHtBetRecord;
 import com.betfair.sim.model.EarlyGoalHtStatusResponse;
+import com.betfair.sim.model.Game;
 import com.betfair.sim.model.LiveGameEntry;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -13,6 +14,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -54,6 +56,14 @@ public class EarlyGoalHtStatsService {
 
   public synchronized EarlyGoalHtStatusResponse getStatus() {
     List<LiveGameEntry> liveGames = gameService.betfairLiveGames();
+    Map<String, LiveGameEntry> liveGamesByEventId = new LinkedHashMap<>();
+    for (LiveGameEntry game : liveGames) {
+      String eventId = safe(game.getEventId()).trim();
+      if (!eventId.isBlank()) {
+        liveGamesByEventId.put(eventId, game);
+      }
+    }
+    Map<String, Game> betfairByEventId = loadBetfairGamesByEventId(LocalDate.now(ZoneOffset.UTC));
     Map<String, EarlyGoalHtBetRecord> betsByEventId = loadBetsByEventId();
     String now = Instant.now().toString();
     Set<String> liveEventIds = new HashSet<>();
@@ -120,6 +130,7 @@ public class EarlyGoalHtStatsService {
       updateBet(existing);
     }
     openingOddsByEventId.keySet().retainAll(liveEventIds);
+    settleStaleOpenBets(betsByEventId, liveGamesByEventId, betfairByEventId, now);
 
     List<EarlyGoalHtBetRecord> bets = loadBets();
     EarlyGoalHtStatusResponse response = buildResponse(liveGames, bets, now);
@@ -433,6 +444,114 @@ public class EarlyGoalHtStatsService {
       return true;
     }
     return Boolean.FALSE.equals(game.isInPlay());
+  }
+
+  private Map<String, Game> loadBetfairGamesByEventId(LocalDate date) {
+    List<Game> games = gameService.betfairMatchOddsForDate(date == null ? null : date.toString());
+    Map<String, Game> out = new LinkedHashMap<>();
+    for (Game game : games) {
+      String eventId = safe(game.getId()).trim();
+      if (!eventId.isBlank()) {
+        out.put(eventId, game);
+      }
+    }
+    return out;
+  }
+
+  private void settleStaleOpenBets(
+      Map<String, EarlyGoalHtBetRecord> betsByEventId,
+      Map<String, LiveGameEntry> liveGamesByEventId,
+      Map<String, Game> betfairByEventId,
+      String now) {
+    for (EarlyGoalHtBetRecord bet : betsByEventId.values()) {
+      if (!"OPEN".equalsIgnoreCase(safe(bet.getState()))) {
+        continue;
+      }
+      String eventId = safe(bet.getEventId()).trim();
+      if (eventId.isBlank() || liveGamesByEventId.containsKey(eventId)) {
+        continue;
+      }
+
+      Game betfairGame = betfairByEventId.get(eventId);
+      if (betfairGame != null) {
+        String marketStatus = safe(betfairGame.getMarketStatus()).trim().toUpperCase(Locale.ROOT);
+        if (isTerminalMarketStatus(marketStatus) || Boolean.FALSE.equals(betfairGame.getInPlay())) {
+          settleFromLatestScore(bet, "STALE_FINISHED", now);
+          updateBet(bet);
+          continue;
+        }
+      }
+
+      if (isStaleAtOrPastNinety(bet, now) || isStaleByLastUpdate(bet.getUpdatedAt(), now, 45)) {
+        settleFromLatestScore(bet, "STALE_90_PLUS", now);
+        updateBet(bet);
+      }
+    }
+  }
+
+  private boolean isTerminalMarketStatus(String marketStatus) {
+    return "CLOSED".equals(marketStatus)
+        || "INACTIVE".equals(marketStatus)
+        || "SETTLED".equals(marketStatus);
+  }
+
+  private boolean isStaleAtOrPastNinety(EarlyGoalHtBetRecord bet, String now) {
+    int minute = parseMinute(bet.getLatestMinute());
+    if (minute < 90) {
+      return false;
+    }
+    try {
+      Instant nowInstant = Instant.parse(now);
+      Instant updated = Instant.parse(safe(bet.getUpdatedAt()).trim());
+      return Duration.between(updated, nowInstant).toMinutes() >= 20;
+    } catch (Exception ex) {
+      return false;
+    }
+  }
+
+  private boolean isStaleByLastUpdate(String updatedAt, String now, long minMinutes) {
+    try {
+      Instant nowInstant = Instant.parse(now);
+      Instant updated = Instant.parse(safe(updatedAt).trim());
+      return Duration.between(updated, nowInstant).toMinutes() >= minMinutes;
+    } catch (Exception ex) {
+      return false;
+    }
+  }
+
+  private void settleFromLatestScore(EarlyGoalHtBetRecord bet, String closeReason, String now) {
+    int[] score = parseScoreParts(bet.getLatestScore());
+    double layOdds = Math.max(1.01d, bet.getEntryLayOdds());
+    double stake = Math.max(0d, bet.getStake());
+    double liability = (layOdds - 1d) * stake;
+    boolean knownScore = score[0] >= 0 && score[1] >= 0;
+    boolean draw = knownScore && score[0] == score[1];
+
+    bet.setExitAtMinute(safe(bet.getLatestMinute()));
+    bet.setCloseReason(closeReason);
+    bet.setExitBackOdds(draw ? 1.01d : layOdds + 1d);
+    if (draw || !knownScore) {
+      bet.setState("LOST");
+      bet.setProfit(round2(-liability));
+    } else {
+      bet.setState("WON");
+      bet.setProfit(round2(stake));
+    }
+    bet.setSettledAt(now);
+    bet.setUpdatedAt(now);
+  }
+
+  private int[] parseScoreParts(String rawScore) {
+    String text = safe(rawScore).trim();
+    if (!text.matches("\\d+\\s*-\\s*\\d+")) {
+      return new int[] {-1, -1};
+    }
+    String[] parts = text.split("-");
+    try {
+      return new int[] {Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
+    } catch (Exception ex) {
+      return new int[] {-1, -1};
+    }
   }
 
   private String safe(String value) {
