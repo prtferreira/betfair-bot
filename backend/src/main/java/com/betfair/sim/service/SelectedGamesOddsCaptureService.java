@@ -2,6 +2,8 @@ package com.betfair.sim.service;
 
 import com.betfair.sim.model.EventMarket;
 import com.betfair.sim.model.EventSelection;
+import com.betfair.sim.repository.MarketOddsSnapshotRepository;
+import com.betfair.sim.repository.MarketOddsSnapshotRow;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,12 +50,22 @@ public class SelectedGamesOddsCaptureService {
 
   private final BetfairApiClient betfairApiClient;
   private final Path followedGamesDir;
+  private final Map<String, MarketOddsSnapshotRepository> repositoryByMarketType;
 
   public SelectedGamesOddsCaptureService(
       BetfairApiClient betfairApiClient,
+      List<MarketOddsSnapshotRepository> marketOddsSnapshotRepositories,
       @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
     this.betfairApiClient = betfairApiClient;
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
+    this.repositoryByMarketType = new ConcurrentHashMap<>();
+    for (MarketOddsSnapshotRepository repository : marketOddsSnapshotRepositories) {
+      if (repository == null || repository.marketTypeCode() == null) {
+        continue;
+      }
+      repository.initSchema();
+      repositoryByMarketType.put(repository.marketTypeCode().trim().toUpperCase(), repository);
+    }
   }
 
   @Scheduled(fixedDelay = 30000)
@@ -99,7 +112,7 @@ public class SelectedGamesOddsCaptureService {
       }
 
       for (EventMarket market : markets) {
-        appendMarketSnapshot(game, teams[0], teams[1], market, now);
+        appendMarketSnapshot(game, identity.getEventId(), teams[0], teams[1], market, now);
       }
     }
   }
@@ -174,6 +187,7 @@ public class SelectedGamesOddsCaptureService {
 
   private void appendMarketSnapshot(
       SelectedGameRef selectedGame,
+      String betfairEventId,
       String homeTeam,
       String awayTeam,
       EventMarket market,
@@ -185,6 +199,8 @@ public class SelectedGamesOddsCaptureService {
 
     Instant kickoff = parseInstant(selectedGame.startTime());
     long gameMinute = kickoff == null ? 0L : Math.max(0L, (now.getEpochSecond() - kickoff.getEpochSecond()) / 60L);
+    String repositoryKey = resolveRepositoryMarketType(marketType);
+    MarketOddsSnapshotRepository repository = repositoryByMarketType.get(repositoryKey);
     LocalDate folderDate = (kickoff == null ? now : kickoff).atOffset(ZoneOffset.UTC).toLocalDate();
     String day = DATE_FOLDER_FORMAT.format(folderDate);
     Path outputDir = followedGamesDir.resolve(day);
@@ -235,6 +251,25 @@ public class SelectedGamesOddsCaptureService {
                 sanitizeCsv(selection.getSelectionName()),
                 formatOdds(selection.getBackOdds()),
                 formatOdds(selection.getLayOdds())));
+
+        if (repository != null) {
+          repository.insert(
+              new MarketOddsSnapshotRow(
+                  now,
+                  kickoff,
+                  gameMinute,
+                  sanitizeCsv(betfairEventId),
+                  sanitizeCsv(market.getMarketId()),
+                  null,
+                  sanitizeCsv(homeTeam),
+                  sanitizeCsv(awayTeam),
+                  sanitizeCsv(market.getMarketStatus()),
+                  selection.getSelectionId(),
+                  sanitizeCsv(selection.getSelectionName()),
+                  selection.getBackOdds(),
+                  selection.getLayOdds(),
+                  "betfair-selected-games"));
+        }
       }
 
       if (!lines.isEmpty()) {
@@ -263,6 +298,13 @@ public class SelectedGamesOddsCaptureService {
 
   private String normalizeMarketType(String value) {
     return value == null ? "" : value.trim().toUpperCase();
+  }
+
+  private String resolveRepositoryMarketType(String marketType) {
+    if ("CORRECT_SCORE".equals(marketType)) {
+      return "FULL_TIME_SCORE";
+    }
+    return marketType;
   }
 
   private String sanitizeCsv(String value) {

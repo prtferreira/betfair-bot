@@ -7,6 +7,8 @@ import com.betfair.sim.model.AnalyticsGoalsEstimate;
 import com.betfair.sim.model.EndedZeroZeroEntry;
 import com.betfair.sim.model.LiveGameEntry;
 import com.betfair.sim.model.MappedLiveGameEntry;
+import com.betfair.sim.repository.LiveMatchOddsSnapshotRepository;
+import com.betfair.sim.repository.LiveMatchOddsSnapshotRow;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -34,12 +36,15 @@ import java.util.stream.Collectors;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GameService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(GameService.class);
   private static final String[] LEAGUES = {
     "Premier League",
     "La Liga",
@@ -65,24 +70,29 @@ public class GameService {
 
   private final BetfairApiClient betfairApiClient;
   private final StatpalLiveClient statpalLiveClient;
-  private final StatpalOddsLiveClient statpalOddsLiveClient;
+  private final LiveMatchOddsSnapshotRepository liveMatchOddsSnapshotRepository;
   private final JdbcTemplate jdbcTemplate;
   private final Path followedGamesDir;
   private final Map<String, LiveTracker> liveTrackers = new ConcurrentHashMap<>();
+  private final Map<String, Instant> liveOddsLastPersistedAt = new ConcurrentHashMap<>();
+  private final Duration liveOddsPersistInterval;
   private volatile Instant mappedLiveCacheExpiresAt = Instant.EPOCH;
   private volatile List<MappedLiveGameEntry> mappedLiveCache = List.of();
 
   public GameService(
       BetfairApiClient betfairApiClient,
       StatpalLiveClient statpalLiveClient,
-      StatpalOddsLiveClient statpalOddsLiveClient,
+      LiveMatchOddsSnapshotRepository liveMatchOddsSnapshotRepository,
       JdbcTemplate jdbcTemplate,
-      @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir) {
+      @Value("${betfair.followed-games.dir:backend/data}") String followedGamesDir,
+      @Value("${betfair.live-odds.persist-interval-seconds:30}") long persistIntervalSeconds) {
     this.betfairApiClient = betfairApiClient;
     this.statpalLiveClient = statpalLiveClient;
-    this.statpalOddsLiveClient = statpalOddsLiveClient;
+    this.liveMatchOddsSnapshotRepository = liveMatchOddsSnapshotRepository;
     this.jdbcTemplate = jdbcTemplate;
     this.followedGamesDir = FollowedGamesPathResolver.resolve(followedGamesDir);
+    this.liveOddsPersistInterval = Duration.ofSeconds(Math.max(5L, persistIntervalSeconds));
+    this.liveMatchOddsSnapshotRepository.initSchema();
   }
 
   public List<Game> gamesForDate(String date) {
@@ -255,6 +265,7 @@ public class GameService {
                 Comparator.reverseOrder())
             .thenComparing(
                 e -> (valueOrEmpty(e.getHomeTeam()) + " vs " + valueOrEmpty(e.getAwayTeam()))));
+    persistLiveOddsSnapshots(entries, now);
     return entries;
   }
 
@@ -273,6 +284,18 @@ public class GameService {
                 + "WHERE match_date = ? "
                 + "ORDER BY statpal_home_team, statpal_away_team",
             today);
+    List<StatpalLiveClient.LiveMatch> statpalMatches = statpalLiveClient.fetchLiveMatches();
+    Map<String, StatpalLiveClient.LiveMatch> statpalByMainId = new HashMap<>();
+    for (StatpalLiveClient.LiveMatch match : statpalMatches) {
+      if (match == null) {
+        continue;
+      }
+      String mainId = valueOrEmpty(match.getMainId()).trim();
+      if (!mainId.isBlank()) {
+        statpalByMainId.putIfAbsent(mainId, match);
+      }
+    }
+
     List<MappedLiveGameEntry> entries = new ArrayList<>();
     for (Map<String, Object> row : rows) {
       String matchId = valueOrEmpty((String) row.get("statpal_main_id")).trim();
@@ -282,21 +305,27 @@ public class GameService {
       }
       String mappedHome = valueOrEmpty((String) row.get("statpal_home_team")).trim();
       String mappedAway = valueOrEmpty((String) row.get("statpal_away_team")).trim();
-      StatpalOddsLiveClient.MatchSnapshot snapshot = statpalOddsLiveClient.fetchByMatchId(matchId);
+      StatpalLiveClient.LiveMatch liveMatch = statpalByMainId.get(matchId);
 
       MappedLiveGameEntry entry = new MappedLiveGameEntry();
       entry.setStatpalMatchId(matchId);
       entry.setBetfairEventId(eventId);
-      entry.setHomeTeam(snapshot.getHomeTeam().isBlank() ? mappedHome : snapshot.getHomeTeam());
-      entry.setAwayTeam(snapshot.getAwayTeam().isBlank() ? mappedAway : snapshot.getAwayTeam());
-      entry.setStatus(snapshot.getStatus());
-      String minute = snapshot.getMinute();
-      if (!minute.isBlank() && !minute.endsWith("'") && minute.matches("^\\d{1,3}(\\+\\d{1,2})?$")) {
-        minute = minute + "'";
+      if (liveMatch != null) {
+        entry.setHomeTeam(
+            valueOrEmpty(liveMatch.getHomeTeam()).isBlank() ? mappedHome : liveMatch.getHomeTeam());
+        entry.setAwayTeam(
+            valueOrEmpty(liveMatch.getAwayTeam()).isBlank() ? mappedAway : liveMatch.getAwayTeam());
+        entry.setStatus(valueOrEmpty(liveMatch.getStatus()));
+        entry.setMinute(normalizeMinuteText(liveMatch.getMinute(), liveMatch.getStatus()));
+        entry.setScore(toScore(liveMatch.getHomeGoals(), liveMatch.getAwayGoals()));
+      } else {
+        entry.setHomeTeam(mappedHome);
+        entry.setAwayTeam(mappedAway);
+        entry.setStatus("");
+        entry.setMinute("");
+        entry.setScore("");
       }
-      entry.setMinute(minute);
-      entry.setScore(snapshot.getScore());
-      entry.setSource("statpal-odds-live");
+      entry.setSource("statpal-live");
       entries.add(entry);
     }
 
@@ -1242,6 +1271,94 @@ public class GameService {
       return true;
     }
     return false;
+  }
+
+  private void persistLiveOddsSnapshots(List<LiveGameEntry> entries, Instant now) {
+    if (entries == null || entries.isEmpty()) {
+      return;
+    }
+    for (LiveGameEntry entry : entries) {
+      if (entry == null || !entry.isInPlay()) {
+        continue;
+      }
+      String eventId = valueOrEmpty(entry.getEventId()).trim();
+      if (eventId.isBlank()) {
+        continue;
+      }
+      Instant lastPersistedAt = liveOddsLastPersistedAt.get(eventId);
+      if (lastPersistedAt != null
+          && Duration.between(lastPersistedAt, now).compareTo(liveOddsPersistInterval) < 0) {
+        continue;
+      }
+      try {
+        liveMatchOddsSnapshotRepository.insert(
+            new LiveMatchOddsSnapshotRow(
+                now,
+                parseInstant(valueOrEmpty(entry.getStartTime())),
+                eventId,
+                valueOrBlank(entry.getMarketId()),
+                valueOrBlank(entry.getStatpalMatchId()),
+                valueOrBlank(entry.getHomeTeam()),
+                valueOrBlank(entry.getAwayTeam()),
+                normalizeScoreForDb(entry.getScore()),
+                valueOrBlank(entry.getMinute()),
+                toMinuteNumber(entry.getMinute()),
+                normalizeGameStatus(entry.getMarketStatus()),
+                entry.isInPlay(),
+                entry.getHomeOdds(),
+                entry.getHomeLayOdds(),
+                entry.getDrawOdds(),
+                entry.getDrawLayOdds(),
+                entry.getAwayOdds(),
+                entry.getAwayLayOdds(),
+                null,
+                "betfair-live"));
+        liveOddsLastPersistedAt.put(eventId, now);
+      } catch (Exception ex) {
+        LOGGER.warn(
+            "Failed to persist live odds snapshot eventId={} marketId={} error={}",
+            eventId,
+            valueOrEmpty(entry.getMarketId()),
+            ex.getMessage());
+      }
+    }
+  }
+
+  private Instant parseInstant(String instantText) {
+    if (instantText == null || instantText.isBlank()) {
+      return null;
+    }
+    try {
+      return Instant.parse(instantText.trim());
+    } catch (Exception ex) {
+      return null;
+    }
+  }
+
+  private Integer toMinuteNumber(String minuteText) {
+    int minute = parseLiveMinute(minuteText);
+    return minute <= 0 ? null : minute;
+  }
+
+  private String normalizeScoreForDb(String score) {
+    String text = valueOrEmpty(score).trim();
+    if (text.isBlank() || "-".equals(text)) {
+      return null;
+    }
+    return text;
+  }
+
+  private String normalizeGameStatus(String gameStatus) {
+    String status = valueOrEmpty(gameStatus).trim().toUpperCase(Locale.ROOT);
+    if (status.isBlank()) {
+      return "UNKNOWN";
+    }
+    return status;
+  }
+
+  private String valueOrBlank(String value) {
+    String text = valueOrEmpty(value).trim();
+    return text.isBlank() ? null : text;
   }
 
   private Map<String, String> loadStatpalMainIdByBetfairEventId(LocalDate date) {

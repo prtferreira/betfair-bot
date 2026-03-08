@@ -3,6 +3,7 @@ package com.betfair.sim.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.time.Instant;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,12 +28,16 @@ public class StatpalLiveClient {
   private final ObjectMapper objectMapper;
   private final String baseUrl;
   private final String accessKey;
+  private final Duration cacheTtl;
+  private volatile Instant cacheExpiresAt = Instant.EPOCH;
+  private volatile List<LiveMatch> cachedLiveMatches = List.of();
 
   public StatpalLiveClient(
       RestTemplateBuilder restTemplateBuilder,
       ObjectMapper objectMapper,
       @Value("${statpal.live.base-url:https://statpal.io/api/v2/soccer/matches/live}") String baseUrl,
       @Value("${statpal.access-key:c6a0d160-93fa-467e-9f5b-0d59e78a14ca}") String accessKey,
+      @Value("${statpal.live.cache-ttl-seconds:30}") long cacheTtlSeconds,
       @Value("${statpal.http.connect-timeout-ms:2500}") long connectTimeoutMs,
       @Value("${statpal.http.read-timeout-ms:4000}") long readTimeoutMs) {
     this.restTemplate =
@@ -43,9 +48,29 @@ public class StatpalLiveClient {
     this.objectMapper = objectMapper;
     this.baseUrl = baseUrl;
     this.accessKey = accessKey;
+    this.cacheTtl = Duration.ofSeconds(Math.max(1L, cacheTtlSeconds));
   }
 
   public List<LiveMatch> fetchLiveMatches() {
+    Instant now = Instant.now();
+    List<LiveMatch> cachedSnapshot = cachedLiveMatches;
+    if (now.isBefore(cacheExpiresAt)) {
+      return cachedSnapshot;
+    }
+    synchronized (this) {
+      now = Instant.now();
+      cachedSnapshot = cachedLiveMatches;
+      if (now.isBefore(cacheExpiresAt)) {
+        return cachedSnapshot;
+      }
+      List<LiveMatch> fetched = fetchLiveMatchesInternal();
+      cachedLiveMatches = List.copyOf(fetched);
+      cacheExpiresAt = now.plus(cacheTtl);
+      return cachedLiveMatches;
+    }
+  }
+
+  private List<LiveMatch> fetchLiveMatchesInternal() {
     if (accessKey == null || accessKey.isBlank()) {
       LOGGER.warn("[STATPAL_DEBUG] access key is missing/blank");
       return List.of();
